@@ -424,7 +424,7 @@ class ContextRecorder extends EventEmitter {
               tool: "browser",
               func: "browser",
               kwargs: {
-                actions: ["a", "b"]
+                actions
               }
             }
           };
