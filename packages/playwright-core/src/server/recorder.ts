@@ -106,9 +106,7 @@ export class Recorder implements InstrumentationListener {
   }
 
   private static async defaultRecorderAppFactory(recorder: Recorder) {
-    if (process.env.PW_CODEGEN_NO_INSPECTOR)
-      return new EmptyRecorderApp();
-    return await RecorderApp.open(recorder, recorder._context, recorder._handleSIGINT);
+    return new EmptyRecorderApp();
   }
 
   async install() {
