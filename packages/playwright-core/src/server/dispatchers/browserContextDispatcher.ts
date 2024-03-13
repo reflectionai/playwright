@@ -39,9 +39,8 @@ import type { Dialog } from '../dialog';
 import type { ConsoleMessage } from '../console';
 import { serializeError } from '../errors';
 import { ElementHandleDispatcher } from './elementHandlerDispatcher';
-import type { Source } from '@recorder/recorderTypes';
+import { ActionCallback } from '@protocol/channels';
 
-export type ActionCallback = (source: Source, actions: string[]) => void;
 export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channels.BrowserContextChannel, DispatcherScope> implements channels.BrowserContextChannel {
   _type_EventTarget = true;
   _type_BrowserContext = true;
@@ -282,8 +281,12 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
     await this._context.close(params);
   }
 
-  async recorderSupplementEnable(params: channels.BrowserContextRecorderSupplementEnableParams): Promise<void> {
-    await Recorder.show(this._context, params, (source, actions) => {console.log({actions})});
+  async recorderSupplementEnable(
+    params: channels.BrowserContextRecorderSupplementEnableParams,
+    actionCallback?: ActionCallback
+  ): Promise<void> {
+    const _actionCallback: ActionCallback = (source, actions) => {console.log({actions})}
+    await Recorder.show(this._context, params, _actionCallback);
   }
 
   async pause(params: channels.BrowserContextPauseParams, metadata: CallMetadata) {
