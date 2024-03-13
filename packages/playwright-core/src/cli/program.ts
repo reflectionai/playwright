@@ -36,6 +36,7 @@ import { wrapInASCIIBox, isLikelyNpxGlobal, assert, gracefullyProcessExitDoNotHa
 import type { Executable } from '../server';
 import { registry, writeDockerVersion } from '../server';
 import { isTargetClosedError } from '../client/errors';
+import type { Source } from '@recorder/recorderTypes';
 
 const packageJSON = require('../../package.json');
 

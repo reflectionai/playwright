@@ -46,6 +46,7 @@ import { locatorOrSelectorAsSelector } from '../utils/isomorphic/locatorParser';
 import { quoteCSSAttributeValue } from '../utils/isomorphic/stringUtils';
 import { eventsHelper, type RegisteredListener } from './../utils/eventsHelper';
 import type { Dialog } from './dialog';
+import { ActionCallback } from './dispatchers/browserContextDispatcher';
 
 type BindingSource = { frame: Frame, page: Page };
 
@@ -160,7 +161,6 @@ export class Recorder implements InstrumentationListener {
       recorderApp.close().catch(() => {});
     });
     this._contextRecorder.on(ContextRecorder.Events.Change, (data: { sources: Source[], primaryFileName: string }) => {
-      console.log({data});
       this._recorderSources = data.sources;
       this._pushAllSources();
       this._recorderApp?.setFileIfNeeded(data.primaryFileName);
@@ -387,7 +387,11 @@ class ContextRecorder extends EventEmitter {
   private _orderedLanguages: LanguageGenerator[] = [];
   private _listeners: RegisteredListener[] = [];
 
-  constructor(context: BrowserContext, params: channels.BrowserContextRecorderSupplementEnableParams) {
+  constructor(
+    context: BrowserContext,
+    params: channels.BrowserContextRecorderSupplementEnableParams,
+    actionCallback?: ActionCallback
+  ) {
     super();
     this._context = context;
     this._params = params;
@@ -414,7 +418,9 @@ class ContextRecorder extends EventEmitter {
         source.revealLine = text.split('\n').length - 1;
         this._recorderSources.push(source);
         if (languageGenerator === this._orderedLanguages[0])
-          console.log({actions})
+          console.log({actionCallback, actions})
+          if(actionCallback)
+            actionCallback(source, actions);
           this._throttledOutputFile?.setContent(source.text);
       }
       this.emit(ContextRecorder.Events.Change, {

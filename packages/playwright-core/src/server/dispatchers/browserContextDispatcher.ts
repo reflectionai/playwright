@@ -39,7 +39,9 @@ import type { Dialog } from '../dialog';
 import type { ConsoleMessage } from '../console';
 import { serializeError } from '../errors';
 import { ElementHandleDispatcher } from './elementHandlerDispatcher';
+import type { Source } from '@recorder/recorderTypes';
 
+export type ActionCallback = (source: Source, actions: string[]) => void;
 export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channels.BrowserContextChannel, DispatcherScope> implements channels.BrowserContextChannel {
   _type_EventTarget = true;
   _type_BrowserContext = true;
