@@ -81,21 +81,27 @@ export class Recorder implements InstrumentationListener {
     Recorder.show(context, params).catch(() => {});
   }
 
-  static show(context: BrowserContext, params: channels.BrowserContextRecorderSupplementEnableParams = {}): Promise<Recorder> {
+  static show(
+    context: BrowserContext, 
+    params: channels.BrowserContextRecorderSupplementEnableParams = {},
+    actionCallback?: ActionCallback
+  ): Promise<Recorder> {
     let recorderPromise = (context as any)[recorderSymbol] as Promise<Recorder>;
     if (!recorderPromise) {
-      const recorder = new Recorder(context, params);
+      const recorder = new Recorder(context, params, actionCallback);
       recorderPromise = recorder.install().then(() => recorder);
       (context as any)[recorderSymbol] = recorderPromise;
     }
     return recorderPromise;
   }
 
-  constructor(context: BrowserContext, params: channels.BrowserContextRecorderSupplementEnableParams) {
+  constructor(
+    context: BrowserContext, 
+    params: channels.BrowserContextRecorderSupplementEnableParams,
+    actionCallback?: ActionCallback
+  ) {
     this._mode = params.mode || 'none';
-    this._contextRecorder = new ContextRecorder(context, params, (source, actions) => {
-      console.log({actions})
-    });
+    this._contextRecorder = new ContextRecorder(context, params, actionCallback);
     this._context = context;
     this._omitCallTracking = !!params.omitCallTracking;
     this._debugger = context.debugger();
@@ -421,7 +427,7 @@ class ContextRecorder extends EventEmitter {
         source.revealLine = text.split('\n').length - 1;
         this._recorderSources.push(source);
         if (languageGenerator === this._orderedLanguages[0])
-          console.log({actionCallback, actions})
+          console.log({actionCallback})
           if(actionCallback)
             actionCallback(source, actions);
           this._throttledOutputFile?.setContent(source.text);
