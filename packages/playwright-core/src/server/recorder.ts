@@ -160,7 +160,6 @@ export class Recorder implements InstrumentationListener {
       recorderApp.close().catch(() => {});
     });
     this._contextRecorder.on(ContextRecorder.Events.Change, (data: { sources: Source[], primaryFileName: string }) => {
-      console.log({data});
       this._recorderSources = data.sources;
       this._pushAllSources();
       this._recorderApp?.setFileIfNeeded(data.primaryFileName);
@@ -395,7 +394,7 @@ class ContextRecorder extends EventEmitter {
     const language = params.language || context.attribution.playwright.options.sdkLanguage;
     this.setOutput(language, params.outputFile);
     const generator = new CodeGenerator(context._browser.options.name, params.mode === 'recording', params.launchOptions || {}, params.contextOptions || {}, params.device, params.saveStorage);
-    generator.on('change', () => {
+    generator.on('change', async () => {
       this._recorderSources = [];
       for (const languageGenerator of this._orderedLanguages) {
         const { header, footer, actions, text } = generator.generateStructure(languageGenerator);
@@ -413,9 +412,34 @@ class ContextRecorder extends EventEmitter {
         };
         source.revealLine = text.split('\n').length - 1;
         this._recorderSources.push(source);
-        if (languageGenerator === this._orderedLanguages[0])
-          console.log({actions})
+        if (languageGenerator === this._orderedLanguages[0]) {
+          const url = 'http://localhost:8080/api/transition/';
+          const headers = {
+            'Content-Type': 'application/json',
+          };
+
+          const body = {
+            trace_id: 150,
+            action: {
+              tool: "browser",
+              func: "browser",
+              kwargs: {
+                actions: ["a", "b"]
+              }
+            }
+          };
+
+          await fetch(url, {
+            method: 'POST', // or 'PUT'
+            headers: headers,
+            body: JSON.stringify(body),
+          })
+          .then(response => response.json())
+          .then(data => console.log({data}))
+          .catch((error) => console.error('Error:', error));
+
           this._throttledOutputFile?.setContent(source.text);
+        }
       }
       this.emit(ContextRecorder.Events.Change, {
         sources: this._recorderSources,
