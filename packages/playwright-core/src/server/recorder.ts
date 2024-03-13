@@ -162,6 +162,7 @@ export class Recorder implements InstrumentationListener {
       recorderApp.close().catch(() => {});
     });
     this._contextRecorder.on(ContextRecorder.Events.Change, (data: { sources: Source[], primaryFileName: string }) => {
+      console.log({data});
       this._recorderSources = data.sources;
       this._pushAllSources();
       this._recorderApp?.setFileIfNeeded(data.primaryFileName);
@@ -415,6 +416,7 @@ class ContextRecorder extends EventEmitter {
         source.revealLine = text.split('\n').length - 1;
         this._recorderSources.push(source);
         if (languageGenerator === this._orderedLanguages[0])
+          console.log({actions})
           this._throttledOutputFile?.setContent(source.text);
       }
       this.emit(ContextRecorder.Events.Change, {
