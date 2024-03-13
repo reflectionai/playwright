@@ -47,6 +47,7 @@ import { quoteCSSAttributeValue } from '../utils/isomorphic/stringUtils';
 import { eventsHelper, type RegisteredListener } from './../utils/eventsHelper';
 import type { Dialog } from './dialog';
 import { ActionCallback } from './dispatchers/browserContextDispatcher';
+import { source } from './isomorphic/utilityScriptSerializers';
 
 type BindingSource = { frame: Frame, page: Page };
 
@@ -92,7 +93,9 @@ export class Recorder implements InstrumentationListener {
 
   constructor(context: BrowserContext, params: channels.BrowserContextRecorderSupplementEnableParams) {
     this._mode = params.mode || 'none';
-    this._contextRecorder = new ContextRecorder(context, params);
+    this._contextRecorder = new ContextRecorder(context, params, (source, actions) => {
+      console.log({actions})
+    });
     this._context = context;
     this._omitCallTracking = !!params.omitCallTracking;
     this._debugger = context.debugger();
