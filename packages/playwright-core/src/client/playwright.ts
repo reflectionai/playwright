@@ -22,7 +22,6 @@ import { ChannelOwner } from './channelOwner';
 import { Electron } from './electron';
 import { APIRequest } from './fetch';
 import { Selectors, SelectorsOwner } from './selectors';
-import { codegen, Options } from '../cli/program';
 
 export class Playwright extends ChannelOwner<channels.PlaywrightChannel> {
   readonly _android: Android;
@@ -63,10 +62,6 @@ export class Playwright extends ChannelOwner<channels.PlaywrightChannel> {
     this.selectors._removeChannel(selectorsOwner);
     this.selectors = selectors;
     this.selectors._addChannel(selectorsOwner);
-  }
-
-  async codegen(options: Options & { target: string, output?: string, testIdAttribute?: string }, url: string | undefined) {
-    return await codegen(options, url)
   }
 
 
