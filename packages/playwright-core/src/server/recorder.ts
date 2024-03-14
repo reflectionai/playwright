@@ -435,7 +435,11 @@ class ContextRecorder extends EventEmitter {
             body: JSON.stringify(body),
           })
           .then(response => response.json())
-          .then(data => console.log({data}))
+          .then(data => {
+            const { action } = data;
+            const { tool, func, kwargs } = action;
+            console.log({tool, func, kwargs})
+          })
           .catch((error) => console.error('Error:', error));
 
           this._throttledOutputFile?.setContent(source.text);
