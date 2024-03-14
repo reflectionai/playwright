@@ -20,7 +20,6 @@ import { Connection } from './client/connection';
 import { BrowserServerLauncherImpl } from './browserServerImpl';
 import { AndroidServerLauncherImpl } from './androidServerImpl';
 import type { Language } from './utils/isomorphic/locatorGenerators';
-import { codegen } from './cli/program';
 
 export function createInProcessPlaywright(): PlaywrightAPI {
   const playwright = createPlaywright({ sdkLanguage: (process.env.PW_LANG_NAME as Language | undefined) || 'javascript' });

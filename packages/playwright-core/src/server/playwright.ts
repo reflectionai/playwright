@@ -50,6 +50,7 @@ export class Playwright extends SdkObject {
   private _allBrowsers = new Set<Browser>();
 
   constructor(options: PlaywrightOptions) {
+    console.log('################## Playwright constructor')
     super({ attribution: {}, instrumentation: createInstrumentation() } as any, undefined, 'Playwright');
     this.options = options;
     this.attribution.playwright = this;
