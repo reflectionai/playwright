@@ -323,7 +323,7 @@ Examples:
 
   $ show-trace https://example.com/trace.zip`);
 
-type Options = {
+export type Options = {
   browser: string;
   channel?: string;
   colorScheme?: string;
