@@ -25,6 +25,7 @@ const { parseOverrides } = require('./parseOverrides');
 const exported = require('./exported.json');
 const { parseApi } = require('../doclint/api_parser');
 const { docsLinkRendererForLanguage, renderPlaywrightDevLinks } = require('../doclint/linkUtils');
+const { codegenExpression } = require('vega-cli');
 
 Error.stackTraceLimit = 50;
 
@@ -80,7 +81,7 @@ class TypesGenerator {
    * @param {string} overridesFile
    * @returns {Promise<string>}
    */
-  async generateTypes(overridesFile) {
+async generateTypes(overridesFile) {
     this.documentation.setLinkRenderer(docsLinkRendererForLanguage('js'));
     this.documentation.setCodeGroupsTransformer('js', tabs => tabs.filter(tab => tab.value === 'ts').map(tab => tab.spec));
     this.documentation.generateSourceCodeComments();
@@ -519,6 +520,30 @@ class TypesGenerator {
       `export interface FirefoxBrowser extends Browser { }`,
       `export interface WebKitBrowser extends Browser { }`,
       `export interface ChromiumCoverage extends Coverage { }`,
+      `
+export type Options = {
+  browser: string;
+  channel?: string;
+  colorScheme?: string;
+  device?: string;
+  geolocation?: string;
+  ignoreHttpsErrors?: boolean;
+  lang?: string;
+  loadStorage?: string;
+  proxyServer?: string;
+  proxyBypass?: string;
+  blockServiceWorkers?: boolean;
+  saveHar?: string;
+  saveHarGlob?: string;
+  saveStorage?: string;
+  saveTrace?: string;
+  timeout: string;
+  timezone?: string;
+  viewportSize?: string;
+  userAgent?: string;
+};
+  
+export declare function codegen(options: Options & { target: string; output?: string; testIdAttribute?: string; }, url: string | undefined): Promise<void>;`,
       ``,
     ].join('\n');
     for (const [key, value] of Object.entries(exported))

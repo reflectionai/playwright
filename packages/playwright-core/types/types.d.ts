@@ -20818,3 +20818,27 @@ export interface ChromiumBrowser extends Browser { }
 export interface FirefoxBrowser extends Browser { }
 export interface WebKitBrowser extends Browser { }
 export interface ChromiumCoverage extends Coverage { }
+
+export type Options = {
+  browser: string;
+  channel?: string;
+  colorScheme?: string;
+  device?: string;
+  geolocation?: string;
+  ignoreHttpsErrors?: boolean;
+  lang?: string;
+  loadStorage?: string;
+  proxyServer?: string;
+  proxyBypass?: string;
+  blockServiceWorkers?: boolean;
+  saveHar?: string;
+  saveHarGlob?: string;
+  saveStorage?: string;
+  saveTrace?: string;
+  timeout: string;
+  timezone?: string;
+  viewportSize?: string;
+  userAgent?: string;
+};
+
+export declare function codegen(options: Options & { target: string; output?: string; testIdAttribute?: string; }, url: string | undefined): Promise<void>;
