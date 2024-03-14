@@ -25,7 +25,6 @@ const { parseOverrides } = require('./parseOverrides');
 const exported = require('./exported.json');
 const { parseApi } = require('../doclint/api_parser');
 const { docsLinkRendererForLanguage, renderPlaywrightDevLinks } = require('../doclint/linkUtils');
-const { codegenExpression } = require('vega-cli');
 
 Error.stackTraceLimit = 50;
 
@@ -81,7 +80,7 @@ class TypesGenerator {
    * @param {string} overridesFile
    * @returns {Promise<string>}
    */
-async generateTypes(overridesFile) {
+  async generateTypes(overridesFile) {
     this.documentation.setLinkRenderer(docsLinkRendererForLanguage('js'));
     this.documentation.setCodeGroupsTransformer('js', tabs => tabs.filter(tab => tab.value === 'ts').map(tab => tab.spec));
     this.documentation.generateSourceCodeComments();

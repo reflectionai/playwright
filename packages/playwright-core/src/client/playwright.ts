@@ -64,7 +64,6 @@ export class Playwright extends ChannelOwner<channels.PlaywrightChannel> {
     this.selectors._addChannel(selectorsOwner);
   }
 
-
   static from(channel: channels.PlaywrightChannel): Playwright {
     return (channel as any)._object;
   }
