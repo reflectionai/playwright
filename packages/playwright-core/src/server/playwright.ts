@@ -28,6 +28,7 @@ import { debugLogger } from '../utils/debugLogger';
 import type { Page } from './page';
 import { DebugController } from './debugController';
 import type { Language } from '../utils/isomorphic/locatorGenerators';
+import { codegen, Options } from '../cli/program';
 
 type PlaywrightOptions = {
   socksProxyPort?: number;
@@ -80,6 +81,10 @@ export class Playwright extends SdkObject {
 
   allPages(): Page[] {
     return [...this._allPages];
+  }
+
+  async codegen(options: Options & { target: string, output?: string, testIdAttribute?: string }, url: string | undefined) {
+    return await codegen(options, url)
   }
 }
 
