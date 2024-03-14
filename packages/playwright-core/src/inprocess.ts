@@ -15,5 +15,6 @@
  */
 
 import { createInProcessPlaywright } from './inProcessFactory';
+import { codegen } from './cli'; // Adjust the path based on your structure
 
-module.exports = createInProcessPlaywright();
+module.exports = { ...createInProcessPlaywright(), codegen };
