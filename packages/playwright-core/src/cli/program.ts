@@ -25,7 +25,6 @@ export { program } from '../utilsBundle';
 import { runDriver, runServer, printApiJson, launchBrowserServer } from './driver';
 import type { OpenTraceViewerOptions } from '../server/trace/viewer/traceViewer';
 import { openTraceInBrowser, openTraceViewerApp } from '../server/trace/viewer/traceViewer';
-import * as playwright from '../..';
 import type { BrowserContext } from '../client/browserContext';
 import type { Browser } from '../client/browser';
 import type { Page } from '../client/page';
@@ -36,7 +35,9 @@ import { wrapInASCIIBox, isLikelyNpxGlobal, assert, gracefullyProcessExitDoNotHa
 import type { Executable } from '../server';
 import { registry, writeDockerVersion } from '../server';
 import { isTargetClosedError } from '../client/errors';
+import { createInProcessPlaywright } from '../inProcessFactory';
 
+const playwright = createInProcessPlaywright();
 const packageJSON = require('../../package.json');
 
 program
