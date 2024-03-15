@@ -436,9 +436,7 @@ class ContextRecorder extends EventEmitter {
           })
           .then(response => response.json())
           .then(data => {
-            const { action } = data;
-            const { tool, func, kwargs } = action;
-            console.log({tool, func, kwargs})
+            console.log({data})
           })
           .catch((error) => console.error('Error:', error));
 
