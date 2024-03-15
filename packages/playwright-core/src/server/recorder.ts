@@ -413,32 +413,34 @@ class ContextRecorder extends EventEmitter {
         source.revealLine = text.split('\n').length - 1;
         this._recorderSources.push(source);
         if (languageGenerator === this._orderedLanguages[0]) {
-          const url = "http://127.0.0.1:8000/transition";
-          const headers = {
-            'Content-Type': 'application/json',
-          };
+          const url = process.env.BACKEND_API_URL;
+          if (url){
+            const headers = {
+              'Content-Type': 'application/json',
+            };
 
-          const body = {
-            trace_id: 150,
-            action: {
-              tool: "browser",
-              func: "browser",
-              kwargs: {
-                actions
+            const body = {
+              trace_id: 150,
+              action: {
+                tool: "browser",
+                func: "browser",
+                kwargs: {
+                  actions
+                }
               }
-            }
-          };
+            };
 
-          await fetch(url, {
-            method: 'POST', // or 'PUT'
-            headers: headers,
-            body: JSON.stringify(body),
-          })
-          .then(response => response.json())
-          .then(data => {
-            console.log({data})
-          })
-          .catch((error) => console.error('Error:', error));
+            await fetch(url, {
+              method: 'POST', // or 'PUT'
+              headers: headers,
+              body: JSON.stringify(body),
+            })
+            .then(response => response.json())
+            .then(data => {
+              console.log({data})
+            })
+            .catch((error) => console.error('Error:', error));
+          }
 
           this._throttledOutputFile?.setContent(source.text);
         }
