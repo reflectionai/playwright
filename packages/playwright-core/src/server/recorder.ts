@@ -413,7 +413,7 @@ class ContextRecorder extends EventEmitter {
         source.revealLine = text.split('\n').length - 1;
         this._recorderSources.push(source);
         if (languageGenerator === this._orderedLanguages[0]) {
-          const url = "http://127.0.0.1:8000/transition/";
+          const url = "http://127.0.0.1:8000/transition";
           const headers = {
             'Content-Type': 'application/json',
           };

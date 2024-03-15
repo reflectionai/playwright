@@ -1,6 +1,6 @@
 {
   "name": "playwright-coeus",
-  "version": "1.43.14",
+  "version": "1.43.15",
   "description": "A high-level API to automate web browsers",
   "repository": {
     "type": "git",
