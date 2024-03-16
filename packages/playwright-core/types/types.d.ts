@@ -20842,3 +20842,4 @@ export type Options = {
 };
 
 export declare function codegen(options: Options & { target: string; output?: string; testIdAttribute?: string; }, url: string | undefined): Promise<void>;
+export declare function installBrowser(args: string[], options: { withDeps?: boolean, force?: boolean, dryRun?: boolean }): Promise<void>

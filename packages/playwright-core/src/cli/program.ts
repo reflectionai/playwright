@@ -112,6 +112,58 @@ function checkBrowsersToInstall(args: string[]): Executable[] {
   return executables;
 }
 
+export const installBrowser = async function(args: string[], options: { withDeps?: boolean, force?: boolean, dryRun?: boolean }): Promise<void> {
+  if (isLikelyNpxGlobal()) {
+    console.error(wrapInASCIIBox([
+      `WARNING: It looks like you are running 'npx playwright install' without first`,
+      `installing your project's dependencies.`,
+      ``,
+      `To avoid unexpected behavior, please install your dependencies first, and`,
+      `then run Playwright's install command:`,
+      ``,
+      `    npm install`,
+      `    npx playwright install`,
+      ``,
+      `If your project does not yet depend on Playwright, first install the`,
+      `applicable npm package (most commonly @playwright/test), and`,
+      `then run Playwright's install command to download the browsers:`,
+      ``,
+      `    npm install @playwright/test`,
+      `    npx playwright install`,
+      ``,
+    ].join('\n'), 1));
+  }
+  try {
+    const hasNoArguments = !args.length;
+    const executables = hasNoArguments ? registry.defaultExecutables() : checkBrowsersToInstall(args);
+    if (options.withDeps)
+      await registry.installDeps(executables, !!options.dryRun);
+    if (options.dryRun) {
+      for (const executable of executables) {
+        const version = executable.browserVersion ? `version ` + executable.browserVersion : '';
+        console.log(`browser: ${executable.name}${version ? ' ' + version : ''}`);
+        console.log(`  Install location:    ${executable.directory ?? '<system>'}`);
+        if (executable.downloadURLs?.length) {
+          const [url, ...fallbacks] = executable.downloadURLs;
+          console.log(`  Download url:        ${url}`);
+          for (let i = 0; i < fallbacks.length; ++i)
+            console.log(`  Download fallback ${i + 1}: ${fallbacks[i]}`);
+        }
+        console.log(``);
+      }
+    } else {
+      const forceReinstall = hasNoArguments ? false : !!options.force;
+      await registry.install(executables, forceReinstall);
+      await registry.validateHostRequirementsForExecutablesIfNeeded(executables, process.env.PW_LANG_NAME || 'javascript').catch((e: Error) => {
+        e.name = 'Playwright Host validation warning';
+        console.error(e);
+      });
+    }
+  } catch (e) {
+    console.log(`Failed to install browsers\n${e}`);
+    gracefullyProcessExitDoNotHang(1);
+  }
+}
 
 program
     .command('install [browser...]')
@@ -119,58 +171,7 @@ program
     .option('--with-deps', 'install system dependencies for browsers')
     .option('--dry-run', 'do not execute installation, only print information')
     .option('--force', 'force reinstall of stable browser channels')
-    .action(async function(args: string[], options: { withDeps?: boolean, force?: boolean, dryRun?: boolean }) {
-      if (isLikelyNpxGlobal()) {
-        console.error(wrapInASCIIBox([
-          `WARNING: It looks like you are running 'npx playwright install' without first`,
-          `installing your project's dependencies.`,
-          ``,
-          `To avoid unexpected behavior, please install your dependencies first, and`,
-          `then run Playwright's install command:`,
-          ``,
-          `    npm install`,
-          `    npx playwright install`,
-          ``,
-          `If your project does not yet depend on Playwright, first install the`,
-          `applicable npm package (most commonly @playwright/test), and`,
-          `then run Playwright's install command to download the browsers:`,
-          ``,
-          `    npm install @playwright/test`,
-          `    npx playwright install`,
-          ``,
-        ].join('\n'), 1));
-      }
-      try {
-        const hasNoArguments = !args.length;
-        const executables = hasNoArguments ? registry.defaultExecutables() : checkBrowsersToInstall(args);
-        if (options.withDeps)
-          await registry.installDeps(executables, !!options.dryRun);
-        if (options.dryRun) {
-          for (const executable of executables) {
-            const version = executable.browserVersion ? `version ` + executable.browserVersion : '';
-            console.log(`browser: ${executable.name}${version ? ' ' + version : ''}`);
-            console.log(`  Install location:    ${executable.directory ?? '<system>'}`);
-            if (executable.downloadURLs?.length) {
-              const [url, ...fallbacks] = executable.downloadURLs;
-              console.log(`  Download url:        ${url}`);
-              for (let i = 0; i < fallbacks.length; ++i)
-                console.log(`  Download fallback ${i + 1}: ${fallbacks[i]}`);
-            }
-            console.log(``);
-          }
-        } else {
-          const forceReinstall = hasNoArguments ? false : !!options.force;
-          await registry.install(executables, forceReinstall);
-          await registry.validateHostRequirementsForExecutablesIfNeeded(executables, process.env.PW_LANG_NAME || 'javascript').catch((e: Error) => {
-            e.name = 'Playwright Host validation warning';
-            console.error(e);
-          });
-        }
-      } catch (e) {
-        console.log(`Failed to install browsers\n${e}`);
-        gracefullyProcessExitDoNotHang(1);
-      }
-    }).addHelpText('afterAll', `
+    .action(installBrowser).addHelpText('afterAll', `
 
 Examples:
   - $ install

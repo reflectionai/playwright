@@ -1,3 +1,3 @@
-import { codegen } from './program';
+import { codegen, installBrowser } from './program';
 
-export { codegen };
+export { codegen, installBrowser };
