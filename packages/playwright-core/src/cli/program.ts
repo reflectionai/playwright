@@ -353,7 +353,7 @@ type CaptureOptions = {
   fullPage: boolean;
 };
 
-async function launchContext(options: Options, headless: boolean, executablePath?: string): Promise<{ browser: Browser, browserName: string, launchOptions: LaunchOptions, contextOptions: BrowserContextOptions, context: BrowserContext }> {
+async function launchContext(options: Options, headless: boolean, executablePath?: string): Promise<{ browser: Browser, browserName: string, launchOptions: LaunchOptions, contextOptions: BrowserContextOptions, context: BrowserContext, closeBrowser: () => void }> {
   validateOptions(options);
   const browserType = lookupBrowserType(options);
   const launchOptions: LaunchOptions = { headless, executablePath };
@@ -529,7 +529,7 @@ async function launchContext(options: Options, headless: boolean, executablePath
   delete launchOptions.executablePath;
   delete launchOptions.handleSIGINT;
   delete contextOptions.deviceScaleFactor;
-  return { browser, browserName: browserType.name(), context, contextOptions, launchOptions };
+  return { browser, browserName: browserType.name(), context, contextOptions, launchOptions, closeBrowser };
 }
 
 async function openPage(context: BrowserContext, url: string | undefined): Promise<Page> {
@@ -568,7 +568,7 @@ export async function codegen(
   url: string | undefined
 ) {
   const { target: language, output: outputFile, testIdAttribute: testIdAttributeName } = options;
-  const { context, launchOptions, contextOptions } = await launchContext(options, !!process.env.PWTEST_CLI_HEADLESS, process.env.PWTEST_CLI_EXECUTABLE_PATH);
+  const { context, launchOptions, contextOptions, closeBrowser } = await launchContext(options, !!process.env.PWTEST_CLI_HEADLESS, process.env.PWTEST_CLI_EXECUTABLE_PATH);
   await context._enableRecorder({
     language,
     launchOptions,
@@ -582,6 +582,7 @@ export async function codegen(
     traceId: options.traceId,
   });
   await openPage(context, url);
+  return closeBrowser;
 }
 
 async function waitForPage(page: Page, captureOptions: CaptureOptions) {
