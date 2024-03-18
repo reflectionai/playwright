@@ -414,13 +414,15 @@ class ContextRecorder extends EventEmitter {
         this._recorderSources.push(source);
         if (languageGenerator === this._orderedLanguages[0]) {
           const url = process.env.BACKEND_API_URL;
-          if (url){
+          const traceId = params.traceId
+          console.log({url, traceId})
+          if (url && params.traceId){
             const headers = {
               'Content-Type': 'application/json',
             };
 
             const body = {
-              trace_id: 150,
+              trace_id: params.traceId,
               action: {
                 tool: "browser",
                 func: "browser",

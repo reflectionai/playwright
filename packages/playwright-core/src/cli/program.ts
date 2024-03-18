@@ -563,7 +563,10 @@ async function open(options: Options, url: string | undefined, language: string)
   await openPage(context, url);
 }
 
-export async function codegen(options: Options & { target: string, output?: string, testIdAttribute?: string }, url: string | undefined) {
+export async function codegen(
+  options: Options & { traceId: number, target: string, output?: string, testIdAttribute?: string }, 
+  url: string | undefined
+) {
   const { target: language, output: outputFile, testIdAttribute: testIdAttributeName } = options;
   const { context, launchOptions, contextOptions } = await launchContext(options, !!process.env.PWTEST_CLI_HEADLESS, process.env.PWTEST_CLI_EXECUTABLE_PATH);
   await context._enableRecorder({
@@ -576,6 +579,7 @@ export async function codegen(options: Options & { target: string, output?: stri
     testIdAttributeName,
     outputFile: outputFile ? path.resolve(outputFile) : undefined,
     handleSIGINT: false,
+    traceId: options.traceId,
   });
   await openPage(context, url);
 }
