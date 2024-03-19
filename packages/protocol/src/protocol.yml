@@ -1150,6 +1150,7 @@ BrowserContext:
         outputFile: string?
         handleSIGINT: boolean?
         omitCallTracking: boolean?
+        traceId: number?
 
     newCDPSession:
       parameters:

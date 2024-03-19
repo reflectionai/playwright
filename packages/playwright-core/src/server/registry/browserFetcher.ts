@@ -27,7 +27,15 @@ import { browserDirectoryToMarkerFilePath } from '.';
 import { getUserAgent } from '../../utils/userAgent';
 import type { DownloadParams } from './oopDownloadBrowserMain';
 
-export async function downloadBrowserWithProgressBar(title: string, browserDirectory: string, executablePath: string | undefined, downloadURLs: string[], downloadFileName: string, downloadConnectionTimeout: number): Promise<boolean> {
+export async function downloadBrowserWithProgressBar(
+  title: string,
+  browserDirectory: string,
+  executablePath: string | undefined,
+  downloadURLs: string[],
+  downloadFileName: string,
+  downloadConnectionTimeout: number,
+  onProgress: ((perc: number, filename: string) => void) | undefined = undefined,
+): Promise<boolean> {
   if (await existsAsync(browserDirectoryToMarkerFilePath(browserDirectory))) {
     // Already downloaded.
     debugLogger.log('install', `${title} is already downloaded.`);
@@ -41,7 +49,7 @@ export async function downloadBrowserWithProgressBar(title: string, browserDirec
       debugLogger.log('install', `downloading ${title} - attempt #${attempt}`);
       const url = downloadURLs[(attempt - 1) % downloadURLs.length];
       logPolitely(`Downloading ${title}` + colors.dim(` from ${url}`));
-      const { error } = await downloadBrowserWithProgressBarOutOfProcess(title, browserDirectory, url, zipPath, executablePath, downloadConnectionTimeout);
+      const { error } = await downloadBrowserWithProgressBarOutOfProcess(title, browserDirectory, url, zipPath, executablePath, downloadConnectionTimeout, onProgress);
       if (!error) {
         debugLogger.log('install', `SUCCESS installing ${title}`);
         break;
@@ -72,15 +80,25 @@ export async function downloadBrowserWithProgressBar(title: string, browserDirec
  * Thats why we execute it in a separate process and check manually if the destination file exists.
  * https://github.com/microsoft/playwright/issues/17394
  */
-function downloadBrowserWithProgressBarOutOfProcess(title: string, browserDirectory: string, url: string, zipPath: string, executablePath: string | undefined, connectionTimeout: number): Promise<{ error: Error | null }> {
+function downloadBrowserWithProgressBarOutOfProcess(
+  title: string,
+  browserDirectory: string,
+  url: string,
+  zipPath: string,
+  executablePath: string | undefined,
+  connectionTimeout: number,
+  onProgress: ((perc: number, filename: string) => void) | undefined = undefined,
+): Promise<{ error: Error | null }> {
   const cp = childProcess.fork(path.join(__dirname, 'oopDownloadBrowserMain.js'));
   const promise = new ManualPromise<{ error: Error | null }>();
   const progress = getDownloadProgress();
   cp.on('message', (message: any) => {
     if (message?.method === 'log')
       debugLogger.log('install', message.params.message);
-    if (message?.method === 'progress')
+    if (message?.method === 'progress') {
       progress(message.params.done, message.params.total);
+      if (onProgress !== undefined) onProgress(message.params.done / message.params.total, title);
+    }
   });
   cp.on('exit', code => {
     if (code !== 0) {

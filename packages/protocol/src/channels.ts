@@ -1665,6 +1665,7 @@ export type BrowserContextRecorderSupplementEnableParams = {
   outputFile?: string,
   handleSIGINT?: boolean,
   omitCallTracking?: boolean,
+  traceId?: number,
 };
 export type BrowserContextRecorderSupplementEnableOptions = {
   language?: string,
@@ -1678,6 +1679,7 @@ export type BrowserContextRecorderSupplementEnableOptions = {
   outputFile?: string,
   handleSIGINT?: boolean,
   omitCallTracking?: boolean,
+  traceId?: number,
 };
 export type BrowserContextRecorderSupplementEnableResult = void;
 export type BrowserContextNewCDPSessionParams = {

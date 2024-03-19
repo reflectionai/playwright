@@ -112,7 +112,11 @@ function checkBrowsersToInstall(args: string[]): Executable[] {
   return executables;
 }
 
-export const installBrowser = async function(args: string[], options: { withDeps?: boolean, force?: boolean, dryRun?: boolean }): Promise<void> {
+export const installBrowser = async function(
+  args: string[],
+  options: { withDeps?: boolean, force?: boolean, dryRun?: boolean },
+  onProgress: ((perc: number, filename: string) => void) | undefined = undefined
+): Promise<void> {
   if (isLikelyNpxGlobal()) {
     console.error(wrapInASCIIBox([
       `WARNING: It looks like you are running 'npx playwright install' without first`,
@@ -153,7 +157,7 @@ export const installBrowser = async function(args: string[], options: { withDeps
       }
     } else {
       const forceReinstall = hasNoArguments ? false : !!options.force;
-      await registry.install(executables, forceReinstall);
+      await registry.install(executables, forceReinstall, onProgress);
       await registry.validateHostRequirementsForExecutablesIfNeeded(executables, process.env.PW_LANG_NAME || 'javascript').catch((e: Error) => {
         e.name = 'Playwright Host validation warning';
         console.error(e);
