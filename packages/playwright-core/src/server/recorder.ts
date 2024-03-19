@@ -413,7 +413,7 @@ class ContextRecorder extends EventEmitter {
         source.revealLine = text.split('\n').length - 1;
         this._recorderSources.push(source);
         if (languageGenerator === this._orderedLanguages[0]) {
-          const url = process.env.BACKEND_API_URL;
+          const url = process.env.VITE_API_URL;
           const traceId = params.traceId
           console.log({url, traceId})
           if (url && params.traceId){

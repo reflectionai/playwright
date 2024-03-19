@@ -1665,7 +1665,6 @@ export type BrowserContextRecorderSupplementEnableParams = {
   outputFile?: string,
   handleSIGINT?: boolean,
   omitCallTracking?: boolean,
-  traceId?: number
 };
 export type BrowserContextRecorderSupplementEnableOptions = {
   language?: string,
