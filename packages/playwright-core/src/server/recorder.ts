@@ -422,6 +422,7 @@ class ContextRecorder extends EventEmitter {
             };
 
             const body = {
+              timestamp: new Date().toISOString(),
               trace_id: params.traceId,
               action: {
                 tool: "browser",
