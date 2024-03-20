@@ -432,7 +432,7 @@ class ContextRecorder extends EventEmitter {
               }
             };
 
-            await fetch(url, {
+            await fetch(`${url}/transition`, {
               method: 'POST', // or 'PUT'
               headers: headers,
               body: JSON.stringify(body),
