@@ -359,7 +359,12 @@ type CaptureOptions = {
   fullPage: boolean;
 };
 
-async function launchContext(options: Options, headless: boolean, executablePath?: string): Promise<{ browser: Browser, browserName: string, launchOptions: LaunchOptions, contextOptions: BrowserContextOptions, context: BrowserContext, closeBrowser: () => void }> {
+async function launchContext(
+  options: Options,
+  headless: boolean,
+  executablePath?: string,
+  rejectUrl?: (url: string) => boolean,
+): Promise<{ browser: Browser, browserName: string, launchOptions: LaunchOptions, contextOptions: BrowserContextOptions, context: BrowserContext, closeBrowser: () => void }> {
   validateOptions(options);
   const browserType = lookupBrowserType(options);
   const launchOptions: LaunchOptions = { headless, executablePath };
@@ -535,6 +540,21 @@ async function launchContext(options: Options, headless: boolean, executablePath
   delete launchOptions.executablePath;
   delete launchOptions.handleSIGINT;
   delete contextOptions.deviceScaleFactor;
+
+
+  context.on('page', async (initial_page: Page) => {
+    const nav_stack = [initial_page.url()];
+    initial_page.on('load', async (page: Page) => {
+      if (rejectUrl !== undefined && rejectUrl(page.url())) {
+        const last = nav_stack.pop();
+        assert(last !== undefined);
+        await page.goto(last);
+        await page.evaluate(() => alert('You weren\'t allowed to access that website.'));
+      }
+      nav_stack.push(page.url());
+    });
+  });
+
   return { browser, browserName: browserType.name(), context, contextOptions, launchOptions, closeBrowser };
 }
 
@@ -571,10 +591,11 @@ async function open(options: Options, url: string | undefined, language: string)
 
 export async function codegen(
   options: Options & { traceId: number, target: string, output?: string, testIdAttribute?: string }, 
-  url: string | undefined
+  url: string | undefined,
+  rejectUrl?: (url: string) => boolean,
 ) {
   const { target: language, output: outputFile, testIdAttribute: testIdAttributeName } = options;
-  const { context, launchOptions, contextOptions, closeBrowser } = await launchContext(options, !!process.env.PWTEST_CLI_HEADLESS, process.env.PWTEST_CLI_EXECUTABLE_PATH);
+  const { context, launchOptions, contextOptions, closeBrowser } = await launchContext(options, !!process.env.PWTEST_CLI_HEADLESS, process.env.PWTEST_CLI_EXECUTABLE_PATH, rejectUrl);
   await context._enableRecorder({
     language,
     launchOptions,
