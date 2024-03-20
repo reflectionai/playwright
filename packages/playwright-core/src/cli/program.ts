@@ -115,7 +115,7 @@ function checkBrowsersToInstall(args: string[]): Executable[] {
 export const installBrowser = async function(
   args: string[],
   options: { withDeps?: boolean, force?: boolean, dryRun?: boolean },
-  onProgress: ((perc: number, filename: string) => void) | undefined = undefined
+  onProgress: ((percent: number, filename: string) => void) | undefined = undefined
 ): Promise<string> {
   if (isLikelyNpxGlobal()) {
     console.error(wrapInASCIIBox([

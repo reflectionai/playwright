@@ -542,8 +542,16 @@ export type Options = {
   userAgent?: string;
 };
   
-export declare function codegen(options: Options & { traceId: number, target: string; output?: string; testIdAttribute?: string; }, url: string | undefined): Promise<() => void>;
-export declare function installBrowser(args: string[], options: { withDeps?: boolean, force?: boolean, dryRun?: boolean }): Promise<void>`,
+export declare function codegen(
+  options: Options & { traceId: number, target: string; output?: string; testIdAttribute?: string; },
+  url: string | undefined,
+  rejectUrl?: (url: string) => boolean,
+): Promise<() => void>;
+export declare function installBrowser(
+  args: string[], 
+  options: { withDeps?: boolean, force?: boolean, dryRun?: boolean },
+  onProgress: ((percent: number, filename: string) => void) | undefined
+): Promise<void>`,
       ``,
     ].join('\n');
     for (const [key, value] of Object.entries(exported))
