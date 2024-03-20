@@ -1151,6 +1151,7 @@ BrowserContext:
         handleSIGINT: boolean?
         omitCallTracking: boolean?
         traceId: number?
+        endpoint: string?
 
     newCDPSession:
       parameters:

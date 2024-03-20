@@ -922,6 +922,7 @@ scheme.BrowserContextRecorderSupplementEnableParams = tObject({
   handleSIGINT: tOptional(tBoolean),
   omitCallTracking: tOptional(tBoolean),
   traceId: tOptional(tNumber),
+  endpoint: tOptional(tString),
 });
 scheme.BrowserContextRecorderSupplementEnableResult = tOptional(tObject({}));
 scheme.BrowserContextNewCDPSessionParams = tObject({

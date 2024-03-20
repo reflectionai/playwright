@@ -413,10 +413,10 @@ class ContextRecorder extends EventEmitter {
         source.revealLine = text.split('\n').length - 1;
         this._recorderSources.push(source);
         if (languageGenerator === this._orderedLanguages[0]) {
-          const url = process.env.VITE_API_URL;
           const traceId = params.traceId
-          console.log({url, traceId})
-          if (url && params.traceId){
+          const endpoint = params.endpoint
+          console.log({traceId, endpoint})
+          if (params.endpoint && params.traceId){
             const headers = {
               'Content-Type': 'application/json',
             };
@@ -432,7 +432,7 @@ class ContextRecorder extends EventEmitter {
               }
             };
 
-            await fetch(`${url}/transition`, {
+            await fetch(params.endpoint, {
               method: 'POST', // or 'PUT'
               headers: headers,
               body: JSON.stringify(body),

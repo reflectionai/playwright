@@ -543,7 +543,7 @@ export type Options = {
 };
   
 export declare function codegen(
-  options: Options & { traceId: number, target: string; output?: string; testIdAttribute?: string; },
+  options: Options & { traceId: number, endpoint: string, target: string; output?: string; testIdAttribute?: string; },
   url: string | undefined,
   rejectUrl?: (url: string) => boolean,
 ): Promise<() => void>;

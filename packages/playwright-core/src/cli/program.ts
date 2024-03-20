@@ -590,7 +590,7 @@ async function open(options: Options, url: string | undefined, language: string)
 }
 
 export async function codegen(
-  options: Options & { traceId: number, target: string, output?: string, testIdAttribute?: string }, 
+  options: Options & { traceId: number, endpoint: string, target: string, output?: string, testIdAttribute?: string }, 
   url: string | undefined,
   rejectUrl?: (url: string) => boolean,
 ) {
@@ -607,6 +607,7 @@ export async function codegen(
     outputFile: outputFile ? path.resolve(outputFile) : undefined,
     handleSIGINT: false,
     traceId: options.traceId,
+    endpoint: options.endpoint,
   });
   await openPage(context, url);
   return closeBrowser;
