@@ -804,7 +804,7 @@ export async function codegen(
   },
   url: string | undefined,
   rejectUrl?: (url: string) => boolean
-) {
+): Promise<() => Promise<{ webcontent: string; url: string }>> {
   const {
     target: language,
     output: outputFile,
