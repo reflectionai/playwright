@@ -20845,9 +20845,11 @@ export declare function codegen(
   options: Options & { traceId: number, endpoint: string, target: string; output?: string; testIdAttribute?: string; },
   url: string | undefined,
   rejectUrl?: (url: string) => boolean,
-): Promise<() => Promise<{webcontent: string, url: string}>>;
+): Promise<() => void>;
 export declare function installBrowser(
   args: string[],
   options: { withDeps?: boolean, force?: boolean, dryRun?: boolean },
   onProgress: ((percent: number, filename: string) => void) | undefined
-): Promise<void>
+): Promise<void>;
+export declare function getPrimaryPageData(): { webcontent: string, url: string};
+

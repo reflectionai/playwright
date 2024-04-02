@@ -518,6 +518,18 @@ type CaptureOptions = {
   fullPage: boolean;
 };
 
+const primaryPageCaptureRate = 1000;
+let primaryPage: Page | undefined = undefined;
+let primaryPageInterval: NodeJS.Timeout | undefined = undefined;
+let primaryPageData: { webcontent: string; url: string } | undefined =
+  undefined;
+
+export function getPrimaryPageData(): { webcontent: string; url: string } {
+  return primaryPageData !== undefined
+    ? primaryPageData
+    : { webcontent: "", url: "" };
+}
+
 async function launchContext(
   options: Options,
   headless: boolean,
@@ -529,7 +541,7 @@ async function launchContext(
   launchOptions: LaunchOptions;
   contextOptions: BrowserContextOptions;
   context: BrowserContext;
-  closeBrowser: () => Promise<{ webcontent: string; url: string }>;
+  closeBrowser: () => void;
 }> {
   validateOptions(options);
   const browserType = lookupBrowserType(options);
@@ -671,17 +683,12 @@ async function launchContext(
   const context = await browser.newContext(contextOptions);
 
   let closingBrowser = false;
-  async function closeBrowser(): Promise<{ url: string; webcontent: string }> {
+  async function closeBrowser() {
     // We can come here multiple times. For example, saving storage creates
     // a temporary page and we call closeBrowser again when that page closes.
 
     // also store the webcontent of the page:
-
-    const [url, webcontent] =
-      context.pages().length !== 0
-        ? [context.pages()[0].url(), await context.pages()[0].content()]
-        : ["", ""];
-    if (closingBrowser) return { url, webcontent };
+    if (closingBrowser) return;
     closingBrowser = true;
     if (options.saveTrace)
       await context.tracing.stop({ path: options.saveTrace });
@@ -691,12 +698,23 @@ async function launchContext(
         .catch((e) => null);
     if (options.saveHar) await context.close();
     await browser.close();
-    return { url, webcontent };
   }
 
-  context.on("page", (page) => {
+  context.on("page", (page: Page) => {
+    // periodically poll the most recently opened page for its data.
+    primaryPage = page;
+    if (primaryPageData !== undefined) clearInterval(primaryPageInterval);
+    primaryPageInterval = setInterval(async () => {
+      primaryPageData = {
+        webcontent: await page.content(),
+        url: page.url(),
+      };
+    }, primaryPageCaptureRate);
+
     page.on("dialog", () => {}); // Prevent dialogs from being automatically dismissed.
     page.on("close", () => {
+      // clean up the last page's interval.
+      if (page === primaryPage) clearInterval(primaryPageInterval);
       const hasPage = browser
         .contexts()
         .some((context) => context.pages().length > 0);
@@ -804,7 +822,7 @@ export async function codegen(
   },
   url: string | undefined,
   rejectUrl?: (url: string) => boolean
-): Promise<() => Promise<{ webcontent: string; url: string }>> {
+): Promise<() => void> {
   const {
     target: language,
     output: outputFile,
