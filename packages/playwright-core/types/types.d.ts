@@ -20845,7 +20845,7 @@ export declare function codegen(
   options: Options & { traceId: number, endpoint: string, target: string; output?: string; testIdAttribute?: string; },
   url: string | undefined,
   rejectUrl?: (url: string) => boolean,
-): Promise<() => void>;
+): Promise<() => Promise<{webcontent: string, url: string}>>;
 export declare function installBrowser(
   args: string[],
   options: { withDeps?: boolean, force?: boolean, dryRun?: boolean },

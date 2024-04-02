@@ -15,16 +15,19 @@
  */
 
 // @ts-check
-const path = require('path');
-const devices = require('../../packages/playwright-core/lib/server/deviceDescriptors');
-const md = require('../markdown');
-const docs = require('../doclint/documentation');
-const PROJECT_DIR = path.join(__dirname, '..', '..');
-const fs = require('fs');
-const { parseOverrides } = require('./parseOverrides');
-const exported = require('./exported.json');
-const { parseApi } = require('../doclint/api_parser');
-const { docsLinkRendererForLanguage, renderPlaywrightDevLinks } = require('../doclint/linkUtils');
+const path = require("path");
+const devices = require("../../packages/playwright-core/lib/server/deviceDescriptors");
+const md = require("../markdown");
+const docs = require("../doclint/documentation");
+const PROJECT_DIR = path.join(__dirname, "..", "..");
+const fs = require("fs");
+const { parseOverrides } = require("./parseOverrides");
+const exported = require("./exported.json");
+const { parseApi } = require("../doclint/api_parser");
+const {
+  docsLinkRendererForLanguage,
+  renderPlaywrightDevLinks,
+} = require("../doclint/linkUtils");
 
 Error.stackTraceLimit = 50;
 
@@ -45,11 +48,12 @@ class TypesGenerator {
     /** @type {Set<string>} */
     this.handledMethods = new Set();
     this.documentation = options.documentation;
-    this.overridesToDocsClassMapping = options.overridesToDocsClassMapping || new Map();
+    this.overridesToDocsClassMapping =
+      options.overridesToDocsClassMapping || new Map();
     this.ignoreMissing = options.ignoreMissing || new Set();
     this.doNotExportClassNames = options.doNotExportClassNames || new Set();
     this.doNotGenerate = options.doNotGenerate || new Set();
-    this.documentation.filterForLanguage('js');
+    this.documentation.filterForLanguage("js");
     if (!options.includeExperimental)
       this.documentation.filterOutExperimental();
     this.documentation.copyDocsFromSuperclasses([]);
@@ -61,11 +65,15 @@ class TypesGenerator {
       /** @type {docs.Member | undefined} */
       let newMember = undefined;
       for (const [memberName, member] of clazz.members) {
-        if (memberName !== 'close' && memberName !== 'dispose')
-          continue;
-        if (!member.async)
-          continue;
-        newMember = new docs.Member('method', { langs: {}, since: '1.0', experimental: false }, '[Symbol.asyncDispose]', null, []);
+        if (memberName !== "close" && memberName !== "dispose") continue;
+        if (!member.async) continue;
+        newMember = new docs.Member(
+          "method",
+          { langs: {}, since: "1.0", experimental: false },
+          "[Symbol.asyncDispose]",
+          null,
+          []
+        );
         newMember.async = true;
         break;
       }
@@ -81,83 +89,118 @@ class TypesGenerator {
    * @returns {Promise<string>}
    */
   async generateTypes(overridesFile) {
-    this.documentation.setLinkRenderer(docsLinkRendererForLanguage('js'));
-    this.documentation.setCodeGroupsTransformer('js', tabs => tabs.filter(tab => tab.value === 'ts').map(tab => tab.spec));
+    this.documentation.setLinkRenderer(docsLinkRendererForLanguage("js"));
+    this.documentation.setCodeGroupsTransformer("js", (tabs) =>
+      tabs.filter((tab) => tab.value === "ts").map((tab) => tab.spec)
+    );
     this.documentation.generateSourceCodeComments();
 
     const handledClasses = new Set();
 
-    let overrides = await parseOverrides(overridesFile, className => {
-      if (className === 'AsymmetricMatchers')
-        return '';
-      const docClass = this.docClassForName(className);
-      if (!docClass)
-        return '';
-      handledClasses.add(className);
-      return this.writeComment(docClass.comment) + '\n';
-    }, (className, methodName, overloadIndex) => {
-      if (className === 'SuiteFunction' && methodName === '__call') {
-        const cls = this.documentation.classes.get('Test');
-        const method = cls.membersArray.find(m => m.alias === 'describe');
-        return this.memberJSDOC(method, '  ').trimLeft();
-      }
-      if (className === 'TestFunction' && methodName === '__call') {
-        const cls = this.documentation.classes.get('Test');
-        const method = cls.membersArray.find(m => m.alias === '(call)');
-        return this.memberJSDOC(method, '  ').trimLeft();
-      }
+    let overrides = await parseOverrides(
+      overridesFile,
+      (className) => {
+        if (className === "AsymmetricMatchers") return "";
+        const docClass = this.docClassForName(className);
+        if (!docClass) return "";
+        handledClasses.add(className);
+        return this.writeComment(docClass.comment) + "\n";
+      },
+      (className, methodName, overloadIndex) => {
+        if (className === "SuiteFunction" && methodName === "__call") {
+          const cls = this.documentation.classes.get("Test");
+          const method = cls.membersArray.find((m) => m.alias === "describe");
+          return this.memberJSDOC(method, "  ").trimLeft();
+        }
+        if (className === "TestFunction" && methodName === "__call") {
+          const cls = this.documentation.classes.get("Test");
+          const method = cls.membersArray.find((m) => m.alias === "(call)");
+          return this.memberJSDOC(method, "  ").trimLeft();
+        }
 
-      const docClass = this.docClassForName(className);
-      let method;
-      if (docClass) {
-        const methods = docClass.membersArray.filter(m => m.alias === methodName && m.kind !== 'event').sort((a, b) => a.overloadIndex - b.overloadIndex);
-        // Use the last overload when not enough overloads are defined in docs.
-        method = methods.find(m => m.overloadIndex === overloadIndex) || methods[methods.length - 1];
+        const docClass = this.docClassForName(className);
+        let method;
+        if (docClass) {
+          const methods = docClass.membersArray
+            .filter((m) => m.alias === methodName && m.kind !== "event")
+            .sort((a, b) => a.overloadIndex - b.overloadIndex);
+          // Use the last overload when not enough overloads are defined in docs.
+          method =
+            methods.find((m) => m.overloadIndex === overloadIndex) ||
+            methods[methods.length - 1];
+        }
+        if (!method && this.canIgnoreMissingName(`${className}.${methodName}`))
+          return "";
+        this.handledMethods.add(`${className}.${methodName}#${overloadIndex}`);
+        if (!method) {
+          if (
+            new Set([
+              "on",
+              "addListener",
+              "off",
+              "removeListener",
+              "once",
+              "prependListener",
+              "botName",
+            ]).has(methodName)
+          )
+            return "";
+          throw new Error(
+            `Unknown override method "${className}.${methodName}"`
+          );
+        }
+        return this.memberJSDOC(method, "  ").trimLeft();
+      },
+      (className) => {
+        const docClass = this.docClassForName(className);
+        if (!docClass || !this.shouldGenerate(docClass.name)) return "";
+        if (docClass.name !== className)
+          // Do not generate members for name-mapped classes.
+          return "";
+        return this.classBody(docClass);
       }
-      if (!method && this.canIgnoreMissingName(`${className}.${methodName}`))
-        return '';
-      this.handledMethods.add(`${className}.${methodName}#${overloadIndex}`);
-      if (!method) {
-        if (new Set(['on', 'addListener', 'off', 'removeListener', 'once', 'prependListener', 'botName']).has(methodName))
-          return '';
-        throw new Error(`Unknown override method "${className}.${methodName}"`);
-      }
-      return this.memberJSDOC(method, '  ').trimLeft();
-    }, (className) => {
-      const docClass = this.docClassForName(className);
-      if (!docClass || !this.shouldGenerate(docClass.name))
-        return '';
-      if (docClass.name !== className)  // Do not generate members for name-mapped classes.
-        return '';
-      return this.classBody(docClass);
-    });
+    );
 
     const classes = this.documentation.classesArray
-        .filter(cls => this.shouldGenerate(cls.name))
-        .filter(cls => !handledClasses.has(cls.name));
+      .filter((cls) => this.shouldGenerate(cls.name))
+      .filter((cls) => !handledClasses.has(cls.name));
     {
-      const playwright = this.documentation.classesArray.find(c => c.name === 'Playwright');
-      playwright.membersArray = playwright.membersArray.filter(member => !['errors', 'devices'].includes(member.name));
+      const playwright = this.documentation.classesArray.find(
+        (c) => c.name === "Playwright"
+      );
+      playwright.membersArray = playwright.membersArray.filter(
+        (member) => !["errors", "devices"].includes(member.name)
+      );
       playwright.index();
     }
-    overrides = overrides.split('\n').filter(l => !l.toLowerCase().includes('[internal]')).join('\n');
+    overrides = overrides
+      .split("\n")
+      .filter((l) => !l.toLowerCase().includes("[internal]"))
+      .join("\n");
     return [
-      `// This file is generated by ${__filename.substring(path.join(__dirname, '..', '..').length).split(path.sep).join(path.posix.sep)}`,
+      `// This file is generated by ${__filename
+        .substring(path.join(__dirname, "..", "..").length)
+        .split(path.sep)
+        .join(path.posix.sep)}`,
       overrides,
-      '',
-      classes.map(classDesc => {
-        return (classDesc.name === 'Playwright') ? this.classBody(classDesc, true) : this.classToString(classDesc);
-      }).join('\n'),
+      "",
+      classes
+        .map((classDesc) => {
+          return classDesc.name === "Playwright"
+            ? this.classBody(classDesc, true)
+            : this.classToString(classDesc);
+        })
+        .join("\n"),
       this.objectDefinitionsToString(overrides),
-      '',
-    ].join('\n');
+      "",
+    ].join("\n");
   }
 
   /**
    * @param {string} name
    */
   canIgnoreMissingName(name) {
-    const parts = name.split('.');
+    const parts = name.split(".");
     // Either the class is ignored, or a specific method.
     return this.ignoreMissing.has(name) || this.ignoreMissing.has(parts[0]);
   }
@@ -166,9 +209,10 @@ class TypesGenerator {
    * @param {string} name
    */
   shouldGenerate(name) {
-    const parts = name.split('.');
+    const parts = name.split(".");
     // Either the class is skipped, or a specific method.
-    const skip = this.doNotGenerate.has(name) || this.doNotGenerate.has(parts[0]);
+    const skip =
+      this.doNotGenerate.has(name) || this.doNotGenerate.has(parts[0]);
     return !skip;
   }
 
@@ -194,15 +238,20 @@ class TypesGenerator {
       const { name, properties } = definition;
       const shouldExport = !!exported[name];
       const usedInternally = internalWords.has(name);
-      if (!usedInternally && !shouldExport)
-        continue;
-      parts.push(`${shouldExport ? 'export ' : ''}interface ${name} ${this.stringifyObjectType(properties, name, '')}\n`)
+      if (!usedInternally && !shouldExport) continue;
+      parts.push(
+        `${
+          shouldExport ? "export " : ""
+        }interface ${name} ${this.stringifyObjectType(properties, name, "")}\n`
+      );
     }
-    return parts.join('\n');
+    return parts.join("\n");
   }
 
   nameForProperty(member) {
-    return (member.required || member.alias.startsWith('...')) ? member.alias : member.alias + '?';
+    return member.required || member.alias.startsWith("...")
+      ? member.alias
+      : member.alias + "?";
   }
 
   /**
@@ -211,49 +260,57 @@ class TypesGenerator {
   classToString(classDesc) {
     const parts = [];
     if (classDesc.comment) {
-      parts.push(this.writeComment(classDesc.comment))
+      parts.push(this.writeComment(classDesc.comment));
     }
     const shouldExport = !this.doNotExportClassNames.has(classDesc.name);
-    parts.push(`${shouldExport ? 'export ' : ''}interface ${classDesc.name} ${classDesc.extends ? `extends ${classDesc.extends} ` : ''}{`);
+    parts.push(
+      `${shouldExport ? "export " : ""}interface ${classDesc.name} ${
+        classDesc.extends ? `extends ${classDesc.extends} ` : ""
+      }{`
+    );
     parts.push(this.classBody(classDesc));
-    return parts.join('\n') + '}\n';
+    return parts.join("\n") + "}\n";
   }
 
   /**
    * @param {string} type
    */
   argNameForType(type) {
-    if (type === 'void')
-      return null;
-    if (type.includes('{'))
-      return 'data';
-    return (type[0].toLowerCase() + type.slice(1)).replace(/\|/g, 'Or');
+    if (type === "void") return null;
+    if (type.includes("{")) return "data";
+    return (type[0].toLowerCase() + type.slice(1)).replace(/\|/g, "Or");
   }
 
   /**
    * @param {docs.Class} classDesc
    */
   hasUniqueEvents(classDesc) {
-    if (!classDesc.events.size)
-      return false;
+    if (!classDesc.events.size) return false;
     const parent = this.parentClass(classDesc);
-    if (!parent)
-      return true;
-    return Array.from(classDesc.events.keys()).some(eventName => !parent.events.has(eventName));
+    if (!parent) return true;
+    return Array.from(classDesc.events.keys()).some(
+      (eventName) => !parent.events.has(eventName)
+    );
   }
 
   /**
    * @param {docs.Class} classDesc
    */
   createEventDescriptions(classDesc) {
-    if (!this.hasUniqueEvents(classDesc))
-      return [];
+    if (!this.hasUniqueEvents(classDesc)) return [];
     const descriptions = [];
     for (let [eventName, value] of classDesc.events) {
       eventName = eventName.toLowerCase();
-      const type = this.stringifyComplexType(value && value.type, 'out', '  ', classDesc.name, eventName, 'payload');
+      const type = this.stringifyComplexType(
+        value && value.type,
+        "out",
+        "  ",
+        classDesc.name,
+        eventName,
+        "payload"
+      );
       const argName = this.argNameForType(type);
-      const params = argName ? `${argName}: ${type}` : '';
+      const params = argName ? `${argName}: ${type}` : "";
       descriptions.push({
         type,
         params,
@@ -272,52 +329,87 @@ class TypesGenerator {
     let parts = [];
     const eventDescriptions = this.createEventDescriptions(classDesc);
     const commentForMethod = {
-      off: 'Removes an event listener added by `on` or `addListener`.',
-      removeListener: 'Removes an event listener added by `on` or `addListener`.',
-      once: 'Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.'
-    }
-    const indent = exportMembersAsGlobals ? '' : '  ';
-    for (const method of ['on', 'once', 'addListener', 'removeListener', 'off', 'prependListener']) {
+      off: "Removes an event listener added by `on` or `addListener`.",
+      removeListener:
+        "Removes an event listener added by `on` or `addListener`.",
+      once: "Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.",
+    };
+    const indent = exportMembersAsGlobals ? "" : "  ";
+    for (const method of [
+      "on",
+      "once",
+      "addListener",
+      "removeListener",
+      "off",
+      "prependListener",
+    ]) {
       for (const { eventName, params, comment } of eventDescriptions) {
-        if ((method === 'on' || method === 'addListener' || method === 'prependListener') && comment)
+        if (
+          (method === "on" ||
+            method === "addListener" ||
+            method === "prependListener") &&
+          comment
+        )
           parts.push(this.writeComment(comment, indent));
-        else
-          parts.push(this.writeComment(commentForMethod[method], indent));
-        parts.push(`  ${method}(event: '${eventName}', listener: (${params}) => void): this;\n`);
+        else parts.push(this.writeComment(commentForMethod[method], indent));
+        parts.push(
+          `  ${method}(event: '${eventName}', listener: (${params}) => void): this;\n`
+        );
       }
     }
 
-    const members = classDesc.membersArray.filter(member => member.kind !== 'event');
-    parts.push(members.map(member => {
-      if (!this.shouldGenerate(`${classDesc.name}.${member.name}`))
-        return '';
-      if (member.kind === 'event')
-        return '';
-      if (member.alias === 'waitForEvent') {
-        const parts = [];
-        for (const { eventName, params, comment, type } of eventDescriptions) {
-          if (comment)
-            parts.push(this.writeComment(comment, indent));
-          parts.push(`  ${member.alias}(event: '${eventName}', optionsOrPredicate?: { predicate?: (${params}) => boolean | Promise<boolean>, timeout?: number } | ((${params}) => boolean | Promise<boolean>)): Promise<${type}>;\n`);
-        }
+    const members = classDesc.membersArray.filter(
+      (member) => member.kind !== "event"
+    );
+    parts.push(
+      members
+        .map((member) => {
+          if (!this.shouldGenerate(`${classDesc.name}.${member.name}`))
+            return "";
+          if (member.kind === "event") return "";
+          if (member.alias === "waitForEvent") {
+            const parts = [];
+            for (const {
+              eventName,
+              params,
+              comment,
+              type,
+            } of eventDescriptions) {
+              if (comment) parts.push(this.writeComment(comment, indent));
+              parts.push(
+                `  ${member.alias}(event: '${eventName}', optionsOrPredicate?: { predicate?: (${params}) => boolean | Promise<boolean>, timeout?: number } | ((${params}) => boolean | Promise<boolean>)): Promise<${type}>;\n`
+              );
+            }
 
-        return parts.join('\n');
-      }
-      const jsdoc = this.memberJSDOC(member, indent);
-      const args = this.argsFromMember(member, indent, classDesc.name);
-      let type = this.stringifyComplexType(member.type, 'out', indent, classDesc.name, member.alias);
-      if (member.async)
-        type = `Promise<${type}>`;
-      // do this late, because we still want object definitions for overridden types
-      if (!this.hasOwnMethod(classDesc, member))
-        return '';
-      if (exportMembersAsGlobals) {
-        const memberType = member.kind === 'method' ? `${args} => ${type}` : type;
-        return `${jsdoc}${exportMembersAsGlobals ? 'export const ' : ''}${member.alias}: ${memberType};`
-      }
-      return `${jsdoc}${member.alias}${member.required ? '' : '?'}${args}: ${type};`
-    }).filter(x => x).join('\n\n'));
-    return parts.join('\n') + '\n';
+            return parts.join("\n");
+          }
+          const jsdoc = this.memberJSDOC(member, indent);
+          const args = this.argsFromMember(member, indent, classDesc.name);
+          let type = this.stringifyComplexType(
+            member.type,
+            "out",
+            indent,
+            classDesc.name,
+            member.alias
+          );
+          if (member.async) type = `Promise<${type}>`;
+          // do this late, because we still want object definitions for overridden types
+          if (!this.hasOwnMethod(classDesc, member)) return "";
+          if (exportMembersAsGlobals) {
+            const memberType =
+              member.kind === "method" ? `${args} => ${type}` : type;
+            return `${jsdoc}${exportMembersAsGlobals ? "export const " : ""}${
+              member.alias
+            }: ${memberType};`;
+          }
+          return `${jsdoc}${member.alias}${
+            member.required ? "" : "?"
+          }${args}: ${type};`;
+        })
+        .filter((x) => x)
+        .join("\n\n")
+    );
+    return parts.join("\n") + "\n";
   }
 
   /**
@@ -325,11 +417,14 @@ class TypesGenerator {
    * @param {docs.Member} member
    */
   hasOwnMethod(classDesc, member) {
-    if (this.handledMethods.has(`${classDesc.name}.${member.alias}#${member.overloadIndex}`))
+    if (
+      this.handledMethods.has(
+        `${classDesc.name}.${member.alias}#${member.overloadIndex}`
+      )
+    )
       return false;
-    while (classDesc = this.parentClass(classDesc)) {
-      if (classDesc.members.has(member.alias))
-        return false;
+    while ((classDesc = this.parentClass(classDesc))) {
+      if (classDesc.members.has(member.alias)) return false;
     }
     return true;
   }
@@ -338,51 +433,53 @@ class TypesGenerator {
    * @param {docs.Class} classDesc
    */
   parentClass(classDesc) {
-    if (!classDesc.extends)
-      return null;
+    if (!classDesc.extends) return null;
     return this.documentation.classes.get(classDesc.extends);
   }
 
-  writeComment(comment, indent = '') {
+  writeComment(comment, indent = "") {
     const parts = [];
     const out = [];
     const pushLine = (line) => {
-      if (line || out[out.length - 1])
-        out.push(line)
+      if (line || out[out.length - 1]) out.push(line);
     };
     let skipExample = false;
-    for (let line of comment.split('\n')) {
+    for (let line of comment.split("\n")) {
       const match = line.match(/```(\w+)(\s+tab=js-(\w+))?/);
       if (match) {
         const lang = match[1];
-        let flavor = 'ts';
+        let flavor = "ts";
         if (match[3]) {
           flavor = match[3];
-          line = line.replace(/tab=js-\w+/, '').replace(/```\w+/, '```ts');
+          line = line.replace(/tab=js-\w+/, "").replace(/```\w+/, "```ts");
         }
-        skipExample = !["html", "yml", "bash", "js", "txt"].includes(lang) || flavor !== 'ts';
-      } else if (skipExample && line.trim().startsWith('```')) {
+        skipExample =
+          !["html", "yml", "bash", "js", "txt"].includes(lang) ||
+          flavor !== "ts";
+      } else if (skipExample && line.trim().startsWith("```")) {
         skipExample = false;
         continue;
       }
-      if (!skipExample)
-        pushLine(line);
+      if (!skipExample) pushLine(line);
     }
-    comment = out.join('\n');
-    comment = renderPlaywrightDevLinks(comment, '', '/api');
+    comment = out.join("\n");
+    comment = renderPlaywrightDevLinks(comment, "", "/api");
 
-    parts.push(indent + '/**');
-    parts.push(...comment.split('\n').map(line => indent + ' * ' + line.replace(/\*\//g, '*\\/')));
-    parts.push(indent + ' */');
-    return parts.join('\n');
+    parts.push(indent + "/**");
+    parts.push(
+      ...comment
+        .split("\n")
+        .map((line) => indent + " * " + line.replace(/\*\//g, "*\\/"))
+    );
+    parts.push(indent + " */");
+    return parts.join("\n");
   }
 
   /**
    * @param {docs.Type|null} type
    */
   stringifyComplexType(type, direction, indent, ...namespace) {
-    if (!type)
-      return 'void';
+    if (!type) return "void";
     return this.stringifySimpleType(type, direction, indent, ...namespace);
   }
 
@@ -392,17 +489,27 @@ class TypesGenerator {
    * @param {string=} indent
    * @returns {string}
    */
-  stringifyObjectType(properties, name, indent = '') {
+  stringifyObjectType(properties, name, indent = "") {
     const parts = [];
     parts.push(`{`);
-    parts.push(properties.map(member => {
-      const comment = this.memberJSDOC(member, indent + '  ');
-      const args = this.argsFromMember(member, indent + '  ', name);
-      const type = this.stringifyComplexType(member.type, 'out', indent + '  ', name, member.name);
-      return `${comment}${this.nameForProperty(member)}${args}: ${type};`;
-    }).join('\n\n'));
-    parts.push(indent + '}');
-    return parts.join('\n');
+    parts.push(
+      properties
+        .map((member) => {
+          const comment = this.memberJSDOC(member, indent + "  ");
+          const args = this.argsFromMember(member, indent + "  ", name);
+          const type = this.stringifyComplexType(
+            member.type,
+            "out",
+            indent + "  ",
+            name,
+            member.name
+          );
+          return `${comment}${this.nameForProperty(member)}${args}: ${type};`;
+        })
+        .join("\n\n")
+    );
+    parts.push(indent + "}");
+    return parts.join("\n");
   }
 
   /**
@@ -410,24 +517,36 @@ class TypesGenerator {
    * @param {'in' | 'out'} direction
    * @returns{string}
    */
-  stringifySimpleType(type, direction, indent = '', ...namespace) {
-    if (!type)
-      return 'void';
-    if (type.name === 'Object' && type.templates) {
-      const keyType = this.stringifySimpleType(type.templates[0], direction, indent, ...namespace);
-      const valueType = this.stringifySimpleType(type.templates[1], direction, indent, ...namespace);
+  stringifySimpleType(type, direction, indent = "", ...namespace) {
+    if (!type) return "void";
+    if (type.name === "Object" && type.templates) {
+      const keyType = this.stringifySimpleType(
+        type.templates[0],
+        direction,
+        indent,
+        ...namespace
+      );
+      const valueType = this.stringifySimpleType(
+        type.templates[1],
+        direction,
+        indent,
+        ...namespace
+      );
       return `{ [key: ${keyType}]: ${valueType}; }`;
     }
     let out = type.name;
-    if (out === 'int' || out === 'float')
-      out = 'number';
-    if (out === 'Array' && direction === 'in')
-      out = 'ReadonlyArray';
-    if (type.name === 'Object' && type.properties && type.properties.length) {
-      const name = namespace.map(n => n[0].toUpperCase() + n.substring(1)).join('');
+    if (out === "int" || out === "float") out = "number";
+    if (out === "Array" && direction === "in") out = "ReadonlyArray";
+    if (type.name === "Object" && type.properties && type.properties.length) {
+      const name = namespace
+        .map((n) => n[0].toUpperCase() + n.substring(1))
+        .join("");
       const shouldExport = exported[name];
-      const properties = namespace[namespace.length - 1] === 'options' ? type.sortedProperties() : type.properties;
-      if (!this.objectDefinitions.some(o => o.name === name))
+      const properties =
+        namespace[namespace.length - 1] === "options"
+          ? type.sortedProperties()
+          : type.properties;
+      if (!this.objectDefinitions.some((o) => o.name === name))
         this.objectDefinitions.push({ name, properties });
       if (shouldExport) {
         out = name;
@@ -437,22 +556,38 @@ class TypesGenerator {
     }
 
     if (type.args) {
-      const stringArgs = type.args.map(a => ({
+      const stringArgs = type.args.map((a) => ({
         type: this.stringifySimpleType(a, direction, indent, ...namespace),
-        name: a.name.toLowerCase()
+        name: a.name.toLowerCase(),
       }));
-      out = `((${stringArgs.map(({ name, type }) => `${name}: ${type}`).join(', ')}) => ${this.stringifySimpleType(type.returnType, 'out', indent, ...namespace)})`;
-    } else if (type.name === 'function') {
-      out = 'Function';
+      out = `((${stringArgs
+        .map(({ name, type }) => `${name}: ${type}`)
+        .join(", ")}) => ${this.stringifySimpleType(
+        type.returnType,
+        "out",
+        indent,
+        ...namespace
+      )})`;
+    } else if (type.name === "function") {
+      out = "Function";
     }
-    if (out === 'path')
-      return 'string';
-    if (out === 'Any')
-      return 'any';
+    if (out === "path") return "string";
+    if (out === "Any") return "any";
     if (type.templates)
-      out += '<' + type.templates.map(t => this.stringifySimpleType(t, direction, indent, ...namespace)).join(', ') + '>';
+      out +=
+        "<" +
+        type.templates
+          .map((t) =>
+            this.stringifySimpleType(t, direction, indent, ...namespace)
+          )
+          .join(", ") +
+        ">";
     if (type.union)
-      out = type.union.map(t => this.stringifySimpleType(t, direction, indent, ...namespace)).join('|');
+      out = type.union
+        .map((t) =>
+          this.stringifySimpleType(t, direction, indent, ...namespace)
+        )
+        .join("|");
     return out.trim();
   }
 
@@ -460,9 +595,24 @@ class TypesGenerator {
    * @param {docs.Member} member
    */
   argsFromMember(member, indent, ...namespace) {
-    if (member.kind === 'property')
-      return '';
-    return '(' + member.argsArray.map(arg => `${this.nameForProperty(arg)}: ${this.stringifyComplexType(arg.type, 'in', indent, ...namespace, member.alias, arg.alias)}`).join(', ') + ')';
+    if (member.kind === "property") return "";
+    return (
+      "(" +
+      member.argsArray
+        .map(
+          (arg) =>
+            `${this.nameForProperty(arg)}: ${this.stringifyComplexType(
+              arg.type,
+              "in",
+              indent,
+              ...namespace,
+              member.alias,
+              arg.alias
+            )}`
+        )
+        .join(", ") +
+      ")"
+    );
   }
 
   /**
@@ -472,28 +622,63 @@ class TypesGenerator {
   memberJSDOC(member, indent) {
     const lines = [];
     if (member.discouraged) {
-      lines.push('**NOTE** ' + md.wrapText(member.discouraged, { flattenText: true, maxColumns: 120 - 5 }, ''));
-      lines.push('');
+      lines.push(
+        "**NOTE** " +
+          md.wrapText(
+            member.discouraged,
+            { flattenText: true, maxColumns: 120 - 5 },
+            ""
+          )
+      );
+      lines.push("");
     }
-    if (member.comment)
-      lines.push(...member.comment.split('\n'));
+    if (member.comment) lines.push(...member.comment.split("\n"));
     if (member.deprecated)
-      lines.push('@deprecated ' + md.wrapText(member.deprecated, { flattenText: true, maxColumns: 120 - 5 }, ''));
-    lines.push(...member.argsArray.map(arg => {
-      const paramPrefix = `@param ${arg.alias.replace(/\./g, '')} `;
-      return paramPrefix + md.wrapText(arg.comment, { flattenText: true, maxColumns: 120 - 5 }, '');
-    }));
-    if (!lines.length)
-      return indent;
-    return this.writeComment(lines.join('\n'), indent) + '\n' + indent;
+      lines.push(
+        "@deprecated " +
+          md.wrapText(
+            member.deprecated,
+            { flattenText: true, maxColumns: 120 - 5 },
+            ""
+          )
+      );
+    lines.push(
+      ...member.argsArray.map((arg) => {
+        const paramPrefix = `@param ${arg.alias.replace(/\./g, "")} `;
+        return (
+          paramPrefix +
+          md.wrapText(
+            arg.comment,
+            { flattenText: true, maxColumns: 120 - 5 },
+            ""
+          )
+        );
+      })
+    );
+    if (!lines.length) return indent;
+    return this.writeComment(lines.join("\n"), indent) + "\n" + indent;
   }
 }
 
 (async function () {
-  const coreDocumentation = parseApi(path.join(PROJECT_DIR, 'docs', 'src', 'api'));
-  const testDocumentation = parseApi(path.join(PROJECT_DIR, 'docs', 'src', 'test-api'), path.join(PROJECT_DIR, 'docs', 'src', 'api', 'params.md'));
-  const reporterDocumentation = parseApi(path.join(PROJECT_DIR, 'docs', 'src', 'test-reporter-api'));
-  const assertionClasses = new Set(['GenericAssertions', 'LocatorAssertions', 'PageAssertions', 'APIResponseAssertions', 'SnapshotAssertions', 'PlaywrightAssertions']);
+  const coreDocumentation = parseApi(
+    path.join(PROJECT_DIR, "docs", "src", "api")
+  );
+  const testDocumentation = parseApi(
+    path.join(PROJECT_DIR, "docs", "src", "test-api"),
+    path.join(PROJECT_DIR, "docs", "src", "api", "params.md")
+  );
+  const reporterDocumentation = parseApi(
+    path.join(PROJECT_DIR, "docs", "src", "test-reporter-api")
+  );
+  const assertionClasses = new Set([
+    "GenericAssertions",
+    "LocatorAssertions",
+    "PageAssertions",
+    "APIResponseAssertions",
+    "SnapshotAssertions",
+    "PlaywrightAssertions",
+  ]);
 
   /**
    * @param {boolean} includeExperimental
@@ -506,8 +691,12 @@ class TypesGenerator {
       doNotGenerate: new Set([...assertionClasses]),
       includeExperimental,
     });
-    let types = await generator.generateTypes(path.join(__dirname, 'overrides.d.ts'));
-    const namedDevices = Object.keys(devices).map(name => `  ${JSON.stringify(name)}: DeviceDescriptor;`).join('\n');
+    let types = await generator.generateTypes(
+      path.join(__dirname, "overrides.d.ts")
+    );
+    const namedDevices = Object.keys(devices)
+      .map((name) => `  ${JSON.stringify(name)}: DeviceDescriptor;`)
+      .join("\n");
     types += [
       `type Devices = {`,
       namedDevices,
@@ -546,16 +735,16 @@ export declare function codegen(
   options: Options & { traceId: number, endpoint: string, target: string; output?: string; testIdAttribute?: string; },
   url: string | undefined,
   rejectUrl?: (url: string) => boolean,
-): Promise<() => void>;
+): Promise<() => Promise<{webcontent: string, url: string}>>;
 export declare function installBrowser(
   args: string[], 
   options: { withDeps?: boolean, force?: boolean, dryRun?: boolean },
   onProgress: ((percent: number, filename: string) => void) | undefined
 ): Promise<void>`,
       ``,
-    ].join('\n');
+    ].join("\n");
     for (const [key, value] of Object.entries(exported))
-      types = types.replace(new RegExp('\\b' + key + '\\b', 'g'), value);
+      types = types.replace(new RegExp("\\b" + key + "\\b", "g"), value);
     return types;
   }
 
@@ -568,48 +757,52 @@ export declare function installBrowser(
     const generator = new TypesGenerator({
       documentation,
       doNotGenerate: new Set([
-        ...coreDocumentation.classesArray.map(cls => cls.name).filter(name => !assertionClasses.has(name)),
-        'PlaywrightAssertions',
-        'Test',
-        'Fixtures',
-        'TestOptions',
-        'TestConfig.use',
-        'TestProject.use',
-        'GenericAssertions.any',
-        'GenericAssertions.anything',
-        'GenericAssertions.arrayContaining',
-        'GenericAssertions.closeTo',
-        'GenericAssertions.objectContaining',
-        'GenericAssertions.stringContaining',
-        'GenericAssertions.stringMatching',
+        ...coreDocumentation.classesArray
+          .map((cls) => cls.name)
+          .filter((name) => !assertionClasses.has(name)),
+        "PlaywrightAssertions",
+        "Test",
+        "Fixtures",
+        "TestOptions",
+        "TestConfig.use",
+        "TestProject.use",
+        "GenericAssertions.any",
+        "GenericAssertions.anything",
+        "GenericAssertions.arrayContaining",
+        "GenericAssertions.closeTo",
+        "GenericAssertions.objectContaining",
+        "GenericAssertions.stringContaining",
+        "GenericAssertions.stringMatching",
       ]),
       overridesToDocsClassMapping: new Map([
-        ['TestType', 'Test'],
-        ['Config', 'TestConfig'],
-        ['FullConfig', 'TestConfig'],
-        ['Project', 'TestProject'],
-        ['FullProject', 'TestProject'],
-        ['PlaywrightWorkerOptions', 'TestOptions'],
-        ['PlaywrightTestOptions', 'TestOptions'],
-        ['PlaywrightWorkerArgs', 'Fixtures'],
-        ['PlaywrightTestArgs', 'Fixtures'],
-        ['AsymmetricMatchers', 'GenericAssertions'],
+        ["TestType", "Test"],
+        ["Config", "TestConfig"],
+        ["FullConfig", "TestConfig"],
+        ["Project", "TestProject"],
+        ["FullProject", "TestProject"],
+        ["PlaywrightWorkerOptions", "TestOptions"],
+        ["PlaywrightTestOptions", "TestOptions"],
+        ["PlaywrightWorkerArgs", "Fixtures"],
+        ["PlaywrightTestArgs", "Fixtures"],
+        ["AsymmetricMatchers", "GenericAssertions"],
       ]),
       ignoreMissing: new Set([
-        'FullConfig.configFile',
-        'FullConfig.version',
-        'FullConfig.rootDir',
-        'SuiteFunction',
-        'TestFunction',
-        'PlaywrightWorkerOptions.defaultBrowserType',
-        'PlaywrightWorkerArgs.playwright',
-        'Matchers',
-        'ExpectMatcherUtils',
+        "FullConfig.configFile",
+        "FullConfig.version",
+        "FullConfig.rootDir",
+        "SuiteFunction",
+        "TestFunction",
+        "PlaywrightWorkerOptions.defaultBrowserType",
+        "PlaywrightWorkerArgs.playwright",
+        "Matchers",
+        "ExpectMatcherUtils",
       ]),
-      doNotExportClassNames: new Set([...assertionClasses, 'TestProject']),
+      doNotExportClassNames: new Set([...assertionClasses, "TestProject"]),
       includeExperimental,
     });
-    return await generator.generateTypes(path.join(__dirname, 'overrides-test.d.ts'));
+    return await generator.generateTypes(
+      path.join(__dirname, "overrides-test.d.ts")
+    );
   }
 
   /**
@@ -617,26 +810,30 @@ export declare function installBrowser(
    * @returns {Promise<string>}
    */
   async function generateReporterTypes(includeExperimental) {
-    const documentation = coreDocumentation.mergeWith(testDocumentation).mergeWith(reporterDocumentation);
+    const documentation = coreDocumentation
+      .mergeWith(testDocumentation)
+      .mergeWith(reporterDocumentation);
     const generator = new TypesGenerator({
       documentation,
       doNotGenerate: new Set([
-        ...coreDocumentation.classesArray.map(cls => cls.name),
-        ...testDocumentation.classesArray.map(cls => cls.name),
+        ...coreDocumentation.classesArray.map((cls) => cls.name),
+        ...testDocumentation.classesArray.map((cls) => cls.name),
       ]),
       ignoreMissing: new Set([
-        'FullResult',
-        'JSONReport',
-        'JSONReportError',
-        'JSONReportSuite',
-        'JSONReportSpec',
-        'JSONReportTest',
-        'JSONReportTestResult',
-        'JSONReportTestStep',
+        "FullResult",
+        "JSONReport",
+        "JSONReportError",
+        "JSONReportSuite",
+        "JSONReportSpec",
+        "JSONReportTest",
+        "JSONReportTestResult",
+        "JSONReportTestStep",
       ]),
       includeExperimental,
     });
-    return await generator.generateTypes(path.join(__dirname, 'overrides-testReporter.d.ts'));
+    return await generator.generateTypes(
+      path.join(__dirname, "overrides-testReporter.d.ts")
+    );
   }
 
   /**
@@ -645,28 +842,61 @@ export declare function installBrowser(
    * @param {boolean} removeTrailingWhiteSpace
    */
   function writeFile(filePath, content, removeTrailingWhiteSpace) {
-    content = content.replace(/\r\n/g, '\n');
-    if (removeTrailingWhiteSpace)
-      content = content.replace(/( +)\n/g, '\n'); // remove trailing whitespace
-    const existing = fs.readFileSync(filePath, 'utf8');
-    if (existing === content)
-      return;
+    content = content.replace(/\r\n/g, "\n");
+    if (removeTrailingWhiteSpace) content = content.replace(/( +)\n/g, "\n"); // remove trailing whitespace
+    const existing = fs.readFileSync(filePath, "utf8");
+    if (existing === content) return;
     console.error(`Writing //${path.relative(PROJECT_DIR, filePath)}`);
-    fs.writeFileSync(filePath, content, 'utf8');
+    fs.writeFileSync(filePath, content, "utf8");
   }
 
-  const coreTypesDir = path.join(PROJECT_DIR, 'packages', 'playwright-core', 'types');
-  if (!fs.existsSync(coreTypesDir))
-    fs.mkdirSync(coreTypesDir)
-  const playwrightTypesDir = path.join(PROJECT_DIR, 'packages', 'playwright', 'types');
-  if (!fs.existsSync(playwrightTypesDir))
-    fs.mkdirSync(playwrightTypesDir)
-  writeFile(path.join(coreTypesDir, 'protocol.d.ts'), fs.readFileSync(path.join(PROJECT_DIR, 'packages', 'playwright-core', 'src', 'server', 'chromium', 'protocol.d.ts'), 'utf8'), false);
-  writeFile(path.join(coreTypesDir, 'types.d.ts'), await generateCoreTypes(false), true);
-  writeFile(path.join(playwrightTypesDir, 'test.d.ts'), await generateTestTypes(false), true);
-  writeFile(path.join(playwrightTypesDir, 'testReporter.d.ts'), await generateReporterTypes(false), true);
+  const coreTypesDir = path.join(
+    PROJECT_DIR,
+    "packages",
+    "playwright-core",
+    "types"
+  );
+  if (!fs.existsSync(coreTypesDir)) fs.mkdirSync(coreTypesDir);
+  const playwrightTypesDir = path.join(
+    PROJECT_DIR,
+    "packages",
+    "playwright",
+    "types"
+  );
+  if (!fs.existsSync(playwrightTypesDir)) fs.mkdirSync(playwrightTypesDir);
+  writeFile(
+    path.join(coreTypesDir, "protocol.d.ts"),
+    fs.readFileSync(
+      path.join(
+        PROJECT_DIR,
+        "packages",
+        "playwright-core",
+        "src",
+        "server",
+        "chromium",
+        "protocol.d.ts"
+      ),
+      "utf8"
+    ),
+    false
+  );
+  writeFile(
+    path.join(coreTypesDir, "types.d.ts"),
+    await generateCoreTypes(false),
+    true
+  );
+  writeFile(
+    path.join(playwrightTypesDir, "test.d.ts"),
+    await generateTestTypes(false),
+    true
+  );
+  writeFile(
+    path.join(playwrightTypesDir, "testReporter.d.ts"),
+    await generateReporterTypes(false),
+    true
+  );
   process.exit(0);
-})().catch(e => {
+})().catch((e) => {
   console.error(e);
   process.exit(1);
 });
