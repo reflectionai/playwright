@@ -529,7 +529,7 @@ async function launchContext(
   launchOptions: LaunchOptions;
   contextOptions: BrowserContextOptions;
   context: BrowserContext;
-  closeBrowser: () => void;
+  closeBrowser: () => Promise<{ webcontent: string; url: string }>;
 }> {
   validateOptions(options);
   const browserType = lookupBrowserType(options);
