@@ -539,6 +539,8 @@ class ContextRecorder extends EventEmitter {
               : undefined;
           const pageContent = await page?.mainFrame()?.content();
 
+          console.log({ pageAlias, storeObs: params.storeObservation });
+
           if (params.endpoint && params.traceId) {
             const headers = {
               "Content-Type": "application/json",
@@ -547,12 +549,12 @@ class ContextRecorder extends EventEmitter {
             const body = {
               timestamp: new Date().toISOString(),
               trace_id: params.traceId,
+              observation: params.storeObservation
+                ? JSON.stringify({ pageAlias, pageContent })
+                : null,
               action: {
                 tool: "browser",
                 func: "browser",
-                observation: params.storeObservation
-                  ? JSON.stringify({ pageAlias, pageContent })
-                  : null,
                 kwargs: {
                   actions,
                 },
