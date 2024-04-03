@@ -537,8 +537,12 @@ class ContextRecorder extends EventEmitter {
             pageAlias !== undefined
               ? this._pagesFromAliases.get(pageAlias)
               : undefined;
-          const pageContent = await page?.mainFrame()?.content();
-
+          let pageContent = "";
+          let pageUrl = "";
+          try {
+            pageContent = (await page?.mainFrame()?.content()) || "";
+            pageUrl = (await page?.mainFrame()?.url()) || "";
+          } catch (e) {}
           console.log({ pageAlias, storeObs: params.storeObservation });
 
           if (params.endpoint && params.traceId) {
@@ -550,7 +554,11 @@ class ContextRecorder extends EventEmitter {
               timestamp: new Date().toISOString(),
               trace_id: params.traceId,
               observation: params.storeObservation
-                ? JSON.stringify({ pageAlias, pageContent })
+                ? JSON.stringify({
+                    pageAlias: pageAlias || "",
+                    pageContent: pageContent,
+                    pageUrl: pageUrl,
+                  })
                 : null,
               action: {
                 tool: "browser",
