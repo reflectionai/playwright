@@ -550,7 +550,7 @@ class ContextRecorder extends EventEmitter {
               action: {
                 tool: "browser",
                 func: "browser",
-                observation: params.storeObservations
+                observation: params.storeObservation
                   ? JSON.stringify({ pageAlias, pageContent })
                   : null,
                 kwargs: {
