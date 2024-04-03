@@ -518,18 +518,6 @@ type CaptureOptions = {
   fullPage: boolean;
 };
 
-const primaryPageCaptureRate = 1000;
-let primaryPage: Page | undefined = undefined;
-let primaryPageInterval: NodeJS.Timeout | undefined = undefined;
-let primaryPageData: { webcontent: string; url: string } | undefined =
-  undefined;
-
-export function getPrimaryPageData(): { webcontent: string; url: string } {
-  return primaryPageData !== undefined
-    ? primaryPageData
-    : { webcontent: "", url: "" };
-}
-
 async function launchContext(
   options: Options,
   headless: boolean,
@@ -701,20 +689,9 @@ async function launchContext(
   }
 
   context.on("page", (page: Page) => {
-    // periodically poll the most recently opened page for its data.
-    primaryPage = page;
-    if (primaryPageData !== undefined) clearInterval(primaryPageInterval);
-    primaryPageInterval = setInterval(async () => {
-      primaryPageData = {
-        webcontent: await page.content(),
-        url: page.url(),
-      };
-    }, primaryPageCaptureRate);
-
     page.on("dialog", () => {}); // Prevent dialogs from being automatically dismissed.
     page.on("close", () => {
       // clean up the last page's interval.
-      if (page === primaryPage) clearInterval(primaryPageInterval);
       const hasPage = browser
         .contexts()
         .some((context) => context.pages().length > 0);
@@ -816,6 +793,7 @@ export async function codegen(
   options: Options & {
     traceId: number;
     endpoint: string;
+    storeObservation: boolean;
     target: string;
     output?: string;
     testIdAttribute?: string;
@@ -847,6 +825,7 @@ export async function codegen(
     handleSIGINT: false,
     traceId: options.traceId,
     endpoint: options.endpoint,
+    storeObservation: options.storeObservation,
   });
   await openPage(context, url);
   return closeBrowser;

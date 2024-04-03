@@ -469,8 +469,9 @@ export class BrowserContext extends ChannelOwner<channels.BrowserContextChannel>
       testIdAttributeName?: string,
       outputFile?: string,
       handleSIGINT?: boolean,
-      traceId?: number
-      endpoint?: string
+      traceId?: number,
+      endpoint?: string,
+      storeObservation?: boolean,
   }) {
     await this._channel.recorderSupplementEnable(params);
   }

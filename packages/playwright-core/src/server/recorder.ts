@@ -14,47 +14,59 @@
  * limitations under the License.
  */
 
-import * as fs from 'fs';
-import type * as actions from './recorder/recorderActions';
-import type * as channels from '@protocol/channels';
-import type { ActionInContext } from './recorder/codeGenerator';
-import { CodeGenerator } from './recorder/codeGenerator';
-import { toClickOptions, toModifiers } from './recorder/utils';
-import { Page } from './page';
-import { Frame } from './frames';
-import { BrowserContext } from './browserContext';
-import { JavaLanguageGenerator } from './recorder/java';
-import { JavaScriptLanguageGenerator } from './recorder/javascript';
-import { JsonlLanguageGenerator } from './recorder/jsonl';
-import { CSharpLanguageGenerator } from './recorder/csharp';
-import { PythonLanguageGenerator } from './recorder/python';
-import * as recorderSource from '../generated/recorderSource';
-import * as consoleApiSource from '../generated/consoleApiSource';
-import { EmptyRecorderApp } from './recorder/recorderApp';
-import type { IRecorderApp } from './recorder/recorderApp';
-import { RecorderApp } from './recorder/recorderApp';
-import type { CallMetadata, InstrumentationListener, SdkObject } from './instrumentation';
-import type { Point } from '../common/types';
-import type { CallLog, CallLogStatus, EventData, Mode, OverlayState, Source, UIState } from '@recorder/recorderTypes';
-import { createGuid, isUnderTest, monotonicTime } from '../utils';
-import { metadataToCallLog } from './recorder/recorderUtils';
-import { Debugger } from './debugger';
-import { EventEmitter } from 'events';
-import { raceAgainstDeadline } from '../utils/timeoutRunner';
-import type { Language, LanguageGenerator } from './recorder/language';
-import { locatorOrSelectorAsSelector } from '../utils/isomorphic/locatorParser';
-import { quoteCSSAttributeValue } from '../utils/isomorphic/stringUtils';
-import { eventsHelper, type RegisteredListener } from './../utils/eventsHelper';
-import type { Dialog } from './dialog';
+import * as fs from "fs";
+import type * as actions from "./recorder/recorderActions";
+import type * as channels from "@protocol/channels";
+import type { ActionInContext } from "./recorder/codeGenerator";
+import { CodeGenerator } from "./recorder/codeGenerator";
+import { toClickOptions, toModifiers } from "./recorder/utils";
+import { Page } from "./page";
+import { Frame } from "./frames";
+import { BrowserContext } from "./browserContext";
+import { JavaLanguageGenerator } from "./recorder/java";
+import { JavaScriptLanguageGenerator } from "./recorder/javascript";
+import { JsonlLanguageGenerator } from "./recorder/jsonl";
+import { CSharpLanguageGenerator } from "./recorder/csharp";
+import { PythonLanguageGenerator } from "./recorder/python";
+import * as recorderSource from "../generated/recorderSource";
+import * as consoleApiSource from "../generated/consoleApiSource";
+import { EmptyRecorderApp } from "./recorder/recorderApp";
+import type { IRecorderApp } from "./recorder/recorderApp";
+import { RecorderApp } from "./recorder/recorderApp";
+import type {
+  CallMetadata,
+  InstrumentationListener,
+  SdkObject,
+} from "./instrumentation";
+import type { Point } from "../common/types";
+import type {
+  CallLog,
+  CallLogStatus,
+  EventData,
+  Mode,
+  OverlayState,
+  Source,
+  UIState,
+} from "@recorder/recorderTypes";
+import { createGuid, isUnderTest, monotonicTime } from "../utils";
+import { metadataToCallLog } from "./recorder/recorderUtils";
+import { Debugger } from "./debugger";
+import { EventEmitter } from "events";
+import { raceAgainstDeadline } from "../utils/timeoutRunner";
+import type { Language, LanguageGenerator } from "./recorder/language";
+import { locatorOrSelectorAsSelector } from "../utils/isomorphic/locatorParser";
+import { quoteCSSAttributeValue } from "../utils/isomorphic/stringUtils";
+import { eventsHelper, type RegisteredListener } from "./../utils/eventsHelper";
+import type { Dialog } from "./dialog";
 
-type BindingSource = { frame: Frame, page: Page };
+type BindingSource = { frame: Frame; page: Page };
 
-const recorderSymbol = Symbol('recorderSymbol');
+const recorderSymbol = Symbol("recorderSymbol");
 
 export class Recorder implements InstrumentationListener {
   private _context: BrowserContext;
   private _mode: Mode;
-  private _highlightedSelector = '';
+  private _highlightedSelector = "";
   private _overlayState: OverlayState = { offsetX: 0 };
   private _recorderApp: IRecorderApp | null = null;
   private _currentCallsMetadata = new Map<CallMetadata, SdkObject>();
@@ -66,20 +78,28 @@ export class Recorder implements InstrumentationListener {
   private _omitCallTracking = false;
   private _currentLanguage: Language;
 
-  private static recorderAppFactory: ((recorder: Recorder) => Promise<IRecorderApp>) | undefined;
+  private static recorderAppFactory:
+    | ((recorder: Recorder) => Promise<IRecorderApp>)
+    | undefined;
 
-  static setAppFactory(recorderAppFactory: ((recorder: Recorder) => Promise<IRecorderApp>) | undefined) {
+  static setAppFactory(
+    recorderAppFactory:
+      | ((recorder: Recorder) => Promise<IRecorderApp>)
+      | undefined
+  ) {
     Recorder.recorderAppFactory = recorderAppFactory;
   }
 
   static showInspector(context: BrowserContext) {
     const params: channels.BrowserContextRecorderSupplementEnableParams = {};
-    if (isUnderTest())
-      params.language = process.env.TEST_INSPECTOR_LANGUAGE;
+    if (isUnderTest()) params.language = process.env.TEST_INSPECTOR_LANGUAGE;
     Recorder.show(context, params).catch(() => {});
   }
 
-  static show(context: BrowserContext, params: channels.BrowserContextRecorderSupplementEnableParams = {}): Promise<Recorder> {
+  static show(
+    context: BrowserContext,
+    params: channels.BrowserContextRecorderSupplementEnableParams = {}
+  ): Promise<Recorder> {
     let recorderPromise = (context as any)[recorderSymbol] as Promise<Recorder>;
     if (!recorderPromise) {
       const recorder = new Recorder(context, params);
@@ -89,8 +109,11 @@ export class Recorder implements InstrumentationListener {
     return recorderPromise;
   }
 
-  constructor(context: BrowserContext, params: channels.BrowserContextRecorderSupplementEnableParams) {
-    this._mode = params.mode || 'none';
+  constructor(
+    context: BrowserContext,
+    params: channels.BrowserContextRecorderSupplementEnableParams
+  ) {
+    this._mode = params.mode || "none";
     this._contextRecorder = new ContextRecorder(context, params);
     this._context = context;
     this._omitCallTracking = !!params.omitCallTracking;
@@ -110,39 +133,46 @@ export class Recorder implements InstrumentationListener {
   }
 
   async install() {
-    const recorderApp = await (Recorder.recorderAppFactory || Recorder.defaultRecorderAppFactory)(this);
+    const recorderApp = await (
+      Recorder.recorderAppFactory || Recorder.defaultRecorderAppFactory
+    )(this);
     this._recorderApp = recorderApp;
-    recorderApp.once('close', () => {
+    recorderApp.once("close", () => {
       this._debugger.resume(false);
       this._recorderApp = null;
     });
-    recorderApp.on('event', (data: EventData) => {
-      if (data.event === 'setMode') {
+    recorderApp.on("event", (data: EventData) => {
+      if (data.event === "setMode") {
         this.setMode(data.params.mode);
         return;
       }
-      if (data.event === 'selectorUpdated') {
-        this.setHighlightedSelector(this._currentLanguage, data.params.selector);
+      if (data.event === "selectorUpdated") {
+        this.setHighlightedSelector(
+          this._currentLanguage,
+          data.params.selector
+        );
         return;
       }
-      if (data.event === 'step') {
+      if (data.event === "step") {
         this._debugger.resume(true);
         return;
       }
-      if (data.event === 'fileChanged') {
-        this._currentLanguage = this._contextRecorder.languageName(data.params.file);
+      if (data.event === "fileChanged") {
+        this._currentLanguage = this._contextRecorder.languageName(
+          data.params.file
+        );
         this._refreshOverlay();
         return;
       }
-      if (data.event === 'resume') {
+      if (data.event === "resume") {
         this._debugger.resume(false);
         return;
       }
-      if (data.event === 'pause') {
+      if (data.event === "pause") {
         this._debugger.pauseOnNextStatement();
         return;
       }
-      if (data.event === 'clear') {
+      if (data.event === "clear") {
         this._contextRecorder.clearScript();
         return;
       }
@@ -151,7 +181,7 @@ export class Recorder implements InstrumentationListener {
     await Promise.all([
       recorderApp.setMode(this._mode),
       recorderApp.setPaused(this._debugger.isPaused()),
-      this._pushAllSources()
+      this._pushAllSources(),
     ]);
 
     this._context.once(BrowserContext.Events.Close, () => {
@@ -159,16 +189,21 @@ export class Recorder implements InstrumentationListener {
       this._context.instrumentation.removeListener(this);
       recorderApp.close().catch(() => {});
     });
-    this._contextRecorder.on(ContextRecorder.Events.Change, (data: { sources: Source[], primaryFileName: string }) => {
-      this._recorderSources = data.sources;
-      this._pushAllSources();
-      this._recorderApp?.setFileIfNeeded(data.primaryFileName);
-    });
+    this._contextRecorder.on(
+      ContextRecorder.Events.Change,
+      (data: { sources: Source[]; primaryFileName: string }) => {
+        this._recorderSources = data.sources;
+        this._pushAllSources();
+        this._recorderApp?.setFileIfNeeded(data.primaryFileName);
+      }
+    );
 
-    await this._context.exposeBinding('__pw_recorderState', false, source => {
-      let actionSelector = '';
+    await this._context.exposeBinding("__pw_recorderState", false, (source) => {
+      let actionSelector = "";
       let actionPoint: Point | undefined;
-      const hasActiveScreenshotCommand = [...this._currentCallsMetadata.keys()].some(isScreenshotCommand);
+      const hasActiveScreenshotCommand = [
+        ...this._currentCallsMetadata.keys(),
+      ].some(isScreenshotCommand);
       if (!hasActiveScreenshotCommand) {
         actionSelector = this._highlightedSelector;
         for (const [metadata, sdkObject] of this._currentCallsMetadata) {
@@ -189,40 +224,56 @@ export class Recorder implements InstrumentationListener {
       return uiState;
     });
 
-    await this._context.exposeBinding('__pw_recorderSetSelector', false, async ({ frame }, selector: string) => {
-      const selectorPromises: Promise<string | undefined>[] = [];
-      let currentFrame: Frame | null = frame;
-      while (currentFrame) {
-        selectorPromises.push(findFrameSelector(currentFrame));
-        currentFrame = currentFrame.parentFrame();
+    await this._context.exposeBinding(
+      "__pw_recorderSetSelector",
+      false,
+      async ({ frame }, selector: string) => {
+        const selectorPromises: Promise<string | undefined>[] = [];
+        let currentFrame: Frame | null = frame;
+        while (currentFrame) {
+          selectorPromises.push(findFrameSelector(currentFrame));
+          currentFrame = currentFrame.parentFrame();
+        }
+        const fullSelector = (await Promise.all(selectorPromises)).filter(
+          Boolean
+        );
+        fullSelector.push(selector);
+        await this._recorderApp?.setSelector(
+          fullSelector.join(" >> internal:control=enter-frame >> "),
+          true
+        );
       }
-      const fullSelector = (await Promise.all(selectorPromises)).filter(Boolean);
-      fullSelector.push(selector);
-      await this._recorderApp?.setSelector(fullSelector.join(' >> internal:control=enter-frame >> '), true);
-    });
+    );
 
-    await this._context.exposeBinding('__pw_recorderSetMode', false, async ({ frame }, mode: Mode) => {
-      if (frame.parentFrame())
-        return;
-      this.setMode(mode);
-    });
+    await this._context.exposeBinding(
+      "__pw_recorderSetMode",
+      false,
+      async ({ frame }, mode: Mode) => {
+        if (frame.parentFrame()) return;
+        this.setMode(mode);
+      }
+    );
 
-    await this._context.exposeBinding('__pw_recorderSetOverlayState', false, async ({ frame }, state: OverlayState) => {
-      if (frame.parentFrame())
-        return;
-      this._overlayState = state;
-    });
+    await this._context.exposeBinding(
+      "__pw_recorderSetOverlayState",
+      false,
+      async ({ frame }, state: OverlayState) => {
+        if (frame.parentFrame()) return;
+        this._overlayState = state;
+      }
+    );
 
-    await this._context.exposeBinding('__pw_resume', false, () => {
+    await this._context.exposeBinding("__pw_resume", false, () => {
       this._debugger.resume(false);
     });
     await this._context.extendInjectedScript(consoleApiSource.source);
 
     await this._contextRecorder.install();
 
-    if (this._debugger.isPaused())
-      this._pausedStateChanged();
-    this._debugger.on(Debugger.Events.PausedStateChanged, () => this._pausedStateChanged());
+    if (this._debugger.isPaused()) this._pausedStateChanged();
+    this._debugger.on(Debugger.Events.PausedStateChanged, () =>
+      this._pausedStateChanged()
+    );
 
     (this._context as any).recorderAppForTest = recorderApp;
   }
@@ -239,15 +290,31 @@ export class Recorder implements InstrumentationListener {
   }
 
   setMode(mode: Mode) {
-    if (this._mode === mode)
-      return;
-    this._highlightedSelector = '';
+    if (this._mode === mode) return;
+    this._highlightedSelector = "";
     this._mode = mode;
     this._recorderApp?.setMode(this._mode);
-    this._contextRecorder.setEnabled(this._mode === 'recording' || this._mode === 'assertingText' || this._mode === 'assertingVisibility' || this._mode === 'assertingValue');
-    this._debugger.setMuted(this._mode === 'recording' || this._mode === 'assertingText' || this._mode === 'assertingVisibility' || this._mode === 'assertingValue');
-    if (this._mode !== 'none' && this._mode !== 'standby' && this._context.pages().length === 1)
-      this._context.pages()[0].bringToFront().catch(() => {});
+    this._contextRecorder.setEnabled(
+      this._mode === "recording" ||
+        this._mode === "assertingText" ||
+        this._mode === "assertingVisibility" ||
+        this._mode === "assertingValue"
+    );
+    this._debugger.setMuted(
+      this._mode === "recording" ||
+        this._mode === "assertingText" ||
+        this._mode === "assertingVisibility" ||
+        this._mode === "assertingValue"
+    );
+    if (
+      this._mode !== "none" &&
+      this._mode !== "standby" &&
+      this._context.pages().length === 1
+    )
+      this._context
+        .pages()[0]
+        .bringToFront()
+        .catch(() => {});
     this._refreshOverlay();
   }
 
@@ -260,12 +327,16 @@ export class Recorder implements InstrumentationListener {
   }
 
   setHighlightedSelector(language: Language, selector: string) {
-    this._highlightedSelector = locatorOrSelectorAsSelector(language, selector, this._context.selectors().testIdAttributeName());
+    this._highlightedSelector = locatorOrSelectorAsSelector(
+      language,
+      selector,
+      this._context.selectors().testIdAttributeName()
+    );
     this._refreshOverlay();
   }
 
   hideHighlightedSelector() {
-    this._highlightedSelector = '';
+    this._highlightedSelector = "";
     this._refreshOverlay();
   }
 
@@ -275,11 +346,20 @@ export class Recorder implements InstrumentationListener {
 
   private _refreshOverlay() {
     for (const page of this._context.pages())
-      page.mainFrame().evaluateExpression('window.__pw_refreshOverlay()').catch(() => {});
+      page
+        .mainFrame()
+        .evaluateExpression("window.__pw_refreshOverlay()")
+        .catch(() => {});
   }
 
   async onBeforeCall(sdkObject: SdkObject, metadata: CallMetadata) {
-    if (this._omitCallTracking || this._mode === 'recording' || this._mode === 'assertingText' || this._mode === 'assertingVisibility' || this._mode === 'assertingValue')
+    if (
+      this._omitCallTracking ||
+      this._mode === "recording" ||
+      this._mode === "assertingText" ||
+      this._mode === "assertingVisibility" ||
+      this._mode === "assertingValue"
+    )
       return;
     this._currentCallsMetadata.set(metadata, sdkObject);
     this._updateUserSources();
@@ -293,10 +373,15 @@ export class Recorder implements InstrumentationListener {
   }
 
   async onAfterCall(sdkObject: SdkObject, metadata: CallMetadata) {
-    if (this._omitCallTracking || this._mode === 'recording' || this._mode === 'assertingText' || this._mode === 'assertingVisibility' || this._mode === 'assertingValue')
+    if (
+      this._omitCallTracking ||
+      this._mode === "recording" ||
+      this._mode === "assertingText" ||
+      this._mode === "assertingVisibility" ||
+      this._mode === "assertingValue"
+    )
       return;
-    if (!metadata.error)
-      this._currentCallsMetadata.delete(metadata);
+    if (!metadata.error) this._currentCallsMetadata.delete(metadata);
     this._updateUserSources();
     this.updateCallLog([metadata]);
   }
@@ -311,49 +396,66 @@ export class Recorder implements InstrumentationListener {
     // Apply new decorations.
     let fileToSelect = undefined;
     for (const metadata of this._currentCallsMetadata.keys()) {
-      if (!metadata.location)
-        continue;
+      if (!metadata.location) continue;
       const { file, line } = metadata.location;
       let source = this._userSources.get(file);
       if (!source) {
-        source = { isRecorded: false, label: file, id: file, text: this._readSource(file), highlight: [], language: languageForFile(file) };
+        source = {
+          isRecorded: false,
+          label: file,
+          id: file,
+          text: this._readSource(file),
+          highlight: [],
+          language: languageForFile(file),
+        };
         this._userSources.set(file, source);
       }
       if (line) {
         const paused = this._debugger.isPaused(metadata);
-        source.highlight.push({ line, type: metadata.error ? 'error' : (paused ? 'paused' : 'running') });
+        source.highlight.push({
+          line,
+          type: metadata.error ? "error" : paused ? "paused" : "running",
+        });
         source.revealLine = line;
         fileToSelect = source.id;
       }
     }
     this._pushAllSources();
-    if (fileToSelect)
-      this._recorderApp?.setFileIfNeeded(fileToSelect);
+    if (fileToSelect) this._recorderApp?.setFileIfNeeded(fileToSelect);
   }
 
   private _pushAllSources() {
-    this._recorderApp?.setSources([...this._recorderSources, ...this._userSources.values()]);
+    this._recorderApp?.setSources([
+      ...this._recorderSources,
+      ...this._userSources.values(),
+    ]);
   }
 
-  async onBeforeInputAction(sdkObject: SdkObject, metadata: CallMetadata) {
-  }
+  async onBeforeInputAction(sdkObject: SdkObject, metadata: CallMetadata) {}
 
-  async onCallLog(sdkObject: SdkObject, metadata: CallMetadata, logName: string, message: string): Promise<void> {
+  async onCallLog(
+    sdkObject: SdkObject,
+    metadata: CallMetadata,
+    logName: string,
+    message: string
+  ): Promise<void> {
     this.updateCallLog([metadata]);
   }
 
   updateCallLog(metadatas: CallMetadata[]) {
-    if (this._mode === 'recording' || this._mode === 'assertingText' || this._mode === 'assertingVisibility' || this._mode === 'assertingValue')
+    if (
+      this._mode === "recording" ||
+      this._mode === "assertingText" ||
+      this._mode === "assertingVisibility" ||
+      this._mode === "assertingValue"
+    )
       return;
     const logs: CallLog[] = [];
     for (const metadata of metadatas) {
-      if (!metadata.method || metadata.internal)
-        continue;
-      let status: CallLogStatus = 'done';
-      if (this._currentCallsMetadata.has(metadata))
-        status = 'in-progress';
-      if (this._debugger.isPaused(metadata))
-        status = 'paused';
+      if (!metadata.method || metadata.internal) continue;
+      let status: CallLogStatus = "done";
+      if (this._currentCallsMetadata.has(metadata)) status = "in-progress";
+      if (this._debugger.isPaused(metadata)) status = "paused";
       logs.push(metadataToCallLog(metadata, status));
     }
     this._recorderApp?.updateCallLogs(logs);
@@ -361,20 +463,21 @@ export class Recorder implements InstrumentationListener {
 
   private _readSource(fileName: string): string {
     try {
-      return fs.readFileSync(fileName, 'utf-8');
+      return fs.readFileSync(fileName, "utf-8");
     } catch (e) {
-      return '// No source available';
+      return "// No source available";
     }
   }
 }
 
 class ContextRecorder extends EventEmitter {
   static Events = {
-    Change: 'change'
+    Change: "change",
   };
 
   private _generator: CodeGenerator;
   private _pageAliases = new Map<Page, string>();
+  private _pagesFromAliases = new Map<string, Page>();
   private _lastPopupOrdinal = 0;
   private _lastDialogOrdinal = -1;
   private _lastDownloadOrdinal = -1;
@@ -386,18 +489,30 @@ class ContextRecorder extends EventEmitter {
   private _orderedLanguages: LanguageGenerator[] = [];
   private _listeners: RegisteredListener[] = [];
 
-  constructor(context: BrowserContext, params: channels.BrowserContextRecorderSupplementEnableParams) {
+  constructor(
+    context: BrowserContext,
+    params: channels.BrowserContextRecorderSupplementEnableParams
+  ) {
     super();
     this._context = context;
     this._params = params;
     this._recorderSources = [];
-    const language = params.language || context.attribution.playwright.options.sdkLanguage;
+    const language =
+      params.language || context.attribution.playwright.options.sdkLanguage;
     this.setOutput(language, params.outputFile);
-    const generator = new CodeGenerator(context._browser.options.name, params.mode === 'recording', params.launchOptions || {}, params.contextOptions || {}, params.device, params.saveStorage);
-    generator.on('change', async () => {
+    const generator = new CodeGenerator(
+      context._browser.options.name,
+      params.mode === "recording",
+      params.launchOptions || {},
+      params.contextOptions || {},
+      params.device,
+      params.saveStorage
+    );
+    generator.on("change", async () => {
       this._recorderSources = [];
       for (const languageGenerator of this._orderedLanguages) {
-        const { header, footer, actions, text } = generator.generateStructure(languageGenerator);
+        const { header, footer, actions, text } =
+          generator.generateStructure(languageGenerator);
         const source: Source = {
           isRecorded: true,
           label: languageGenerator.name,
@@ -408,17 +523,25 @@ class ContextRecorder extends EventEmitter {
           footer,
           actions,
           language: languageGenerator.highlighter,
-          highlight: []
+          highlight: [],
         };
-        source.revealLine = text.split('\n').length - 1;
+        source.revealLine = text.split("\n").length - 1;
         this._recorderSources.push(source);
         if (languageGenerator === this._orderedLanguages[0]) {
-          const traceId = params.traceId
-          const endpoint = params.endpoint
-          console.log({traceId, endpoint})
-          if (params.endpoint && params.traceId){
+          const traceId = params.traceId;
+          const endpoint = params.endpoint;
+          console.log({ traceId, endpoint });
+
+          const pageAlias = generator._lastAction?.frame?.pageAlias;
+          const page =
+            pageAlias !== undefined
+              ? this._pagesFromAliases.get(pageAlias)
+              : undefined;
+          const pageContent = await page?.mainFrame()?.content();
+
+          if (params.endpoint && params.traceId) {
             const headers = {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             };
 
             const body = {
@@ -427,22 +550,25 @@ class ContextRecorder extends EventEmitter {
               action: {
                 tool: "browser",
                 func: "browser",
+                observation: params.storeObservations
+                  ? JSON.stringify({ pageAlias, pageContent })
+                  : null,
                 kwargs: {
-                  actions
-                }
-              }
+                  actions,
+                },
+              },
             };
 
             await fetch(params.endpoint, {
-              method: 'POST', // or 'PUT'
+              method: "POST", // or 'PUT'
               headers: headers,
               body: JSON.stringify(body),
             })
-            .then(response => response.json())
-            .then(data => {
-              console.log({data})
-            })
-            .catch((error) => console.error('Error:', error));
+              .then((response) => response.json())
+              .then((data) => {
+                console.log({ data });
+              })
+              .catch((error) => console.error("Error:", error));
           }
 
           this._throttledOutputFile?.setContent(source.text);
@@ -450,63 +576,79 @@ class ContextRecorder extends EventEmitter {
       }
       this.emit(ContextRecorder.Events.Change, {
         sources: this._recorderSources,
-        primaryFileName: this._orderedLanguages[0].id
+        primaryFileName: this._orderedLanguages[0].id,
       });
     });
     context.on(BrowserContext.Events.BeforeClose, () => {
       this._throttledOutputFile?.flush();
     });
-    this._listeners.push(eventsHelper.addEventListener(process, 'exit', () => {
-      this._throttledOutputFile?.flush();
-    }));
+    this._listeners.push(
+      eventsHelper.addEventListener(process, "exit", () => {
+        this._throttledOutputFile?.flush();
+      })
+    );
     this._generator = generator;
   }
 
   setOutput(codegenId: string, outputFile?: string) {
     const languages = new Set([
-      new JavaLanguageGenerator('junit'),
-      new JavaLanguageGenerator('library'),
-      new JavaScriptLanguageGenerator(/* isPlaywrightTest */false),
-      new JavaScriptLanguageGenerator(/* isPlaywrightTest */true),
-      new PythonLanguageGenerator(/* isAsync */false, /* isPytest */true),
-      new PythonLanguageGenerator(/* isAsync */false, /* isPytest */false),
-      new PythonLanguageGenerator(/* isAsync */true,  /* isPytest */false),
-      new CSharpLanguageGenerator('mstest'),
-      new CSharpLanguageGenerator('nunit'),
-      new CSharpLanguageGenerator('library'),
+      new JavaLanguageGenerator("junit"),
+      new JavaLanguageGenerator("library"),
+      new JavaScriptLanguageGenerator(/* isPlaywrightTest */ false),
+      new JavaScriptLanguageGenerator(/* isPlaywrightTest */ true),
+      new PythonLanguageGenerator(/* isAsync */ false, /* isPytest */ true),
+      new PythonLanguageGenerator(/* isAsync */ false, /* isPytest */ false),
+      new PythonLanguageGenerator(/* isAsync */ true, /* isPytest */ false),
+      new CSharpLanguageGenerator("mstest"),
+      new CSharpLanguageGenerator("nunit"),
+      new CSharpLanguageGenerator("library"),
       new JsonlLanguageGenerator(),
     ]);
-    const primaryLanguage = [...languages].find(l => l.id === codegenId);
+    const primaryLanguage = [...languages].find((l) => l.id === codegenId);
     if (!primaryLanguage)
-      throw new Error(`\n===============================\nUnsupported language: '${codegenId}'\n===============================\n`);
+      throw new Error(
+        `\n===============================\nUnsupported language: '${codegenId}'\n===============================\n`
+      );
     languages.delete(primaryLanguage);
     this._orderedLanguages = [primaryLanguage, ...languages];
-    this._throttledOutputFile = outputFile ? new ThrottledFile(outputFile) : null;
+    this._throttledOutputFile = outputFile
+      ? new ThrottledFile(outputFile)
+      : null;
     this._generator?.restart();
   }
 
   languageName(id?: string): Language {
     for (const lang of this._orderedLanguages) {
-      if (!id || lang.id === id)
-        return lang.highlighter;
+      if (!id || lang.id === id) return lang.highlighter;
     }
-    return 'javascript';
+    return "javascript";
   }
 
   async install() {
-    this._context.on(BrowserContext.Events.Page, (page: Page) => this._onPage(page));
-    for (const page of this._context.pages())
-      this._onPage(page);
-    this._context.on(BrowserContext.Events.Dialog, (dialog: Dialog) => this._onDialog(dialog.page()));
+    this._context.on(BrowserContext.Events.Page, (page: Page) =>
+      this._onPage(page)
+    );
+    for (const page of this._context.pages()) this._onPage(page);
+    this._context.on(BrowserContext.Events.Dialog, (dialog: Dialog) =>
+      this._onDialog(dialog.page())
+    );
 
     // Input actions that potentially lead to navigation are intercepted on the page and are
     // performed by the Playwright.
-    await this._context.exposeBinding('__pw_recorderPerformAction', false,
-        (source: BindingSource, action: actions.Action) => this._performAction(source.frame, action));
+    await this._context.exposeBinding(
+      "__pw_recorderPerformAction",
+      false,
+      (source: BindingSource, action: actions.Action) =>
+        this._performAction(source.frame, action)
+    );
 
     // Other non-essential actions are simply being recorded.
-    await this._context.exposeBinding('__pw_recorderRecordAction', false,
-        (source: BindingSource, action: actions.Action) => this._recordAction(source.frame, action));
+    await this._context.exposeBinding(
+      "__pw_recorderRecordAction",
+      false,
+      (source: BindingSource, action: actions.Action) =>
+        this._recordAction(source.frame, action)
+    );
 
     await this._context.extendInjectedScript(recorderSource.source);
   }
@@ -516,8 +658,7 @@ class ContextRecorder extends EventEmitter {
   }
 
   dispose() {
-    for (const timer of this._timers)
-      clearTimeout(timer);
+    for (const timer of this._timers) clearTimeout(timer);
     this._timers.clear();
     eventsHelper.removeEventListeners(this._listeners);
   }
@@ -525,25 +666,31 @@ class ContextRecorder extends EventEmitter {
   private async _onPage(page: Page) {
     // First page is called page, others are called popup1, popup2, etc.
     const frame = page.mainFrame();
-    page.on('close', () => {
+    page.on("close", () => {
       this._generator.addAction({
         frame: this._describeMainFrame(page),
         committed: true,
         action: {
-          name: 'closePage',
+          name: "closePage",
           signals: [],
-        }
+        },
       });
+      const pageAlias = this._pageAliases.get(page);
       this._pageAliases.delete(page);
+      if (pageAlias !== undefined) {
+        this._pagesFromAliases.delete(pageAlias);
+      }
     });
-    frame.on(Frame.Events.InternalNavigation, event => {
-      if (event.isPublic)
-        this._onFrameNavigated(frame, page);
+    frame.on(Frame.Events.InternalNavigation, (event) => {
+      if (event.isPublic) this._onFrameNavigated(frame, page);
     });
     page.on(Page.Events.Download, () => this._onDownload(page));
-    const suffix = this._pageAliases.size ? String(++this._lastPopupOrdinal) : '';
-    const pageAlias = 'page' + suffix;
+    const suffix = this._pageAliases.size
+      ? String(++this._lastPopupOrdinal)
+      : "";
+    const pageAlias = "page" + suffix;
     this._pageAliases.set(page, pageAlias);
+    this._pagesFromAliases.set(pageAlias, page);
 
     if (page.opener()) {
       this._onPopup(page.opener()!, page);
@@ -552,17 +699,17 @@ class ContextRecorder extends EventEmitter {
         frame: this._describeMainFrame(page),
         committed: true,
         action: {
-          name: 'openPage',
+          name: "openPage",
           url: page.mainFrame().url(),
           signals: [],
-        }
+        },
       });
     }
   }
 
   clearScript(): void {
     this._generator.restart();
-    if (this._params.mode === 'recording') {
+    if (this._params.mode === "recording") {
       for (const page of this._context.pages())
         this._onFrameNavigated(page.mainFrame(), page);
     }
@@ -575,23 +722,31 @@ class ContextRecorder extends EventEmitter {
     };
   }
 
-  private async _describeFrame(frame: Frame): Promise<actions.FrameDescription> {
+  private async _describeFrame(
+    frame: Frame
+  ): Promise<actions.FrameDescription> {
     const page = frame._page;
     const pageAlias = this._pageAliases.get(page)!;
     const chain: Frame[] = [];
-    for (let ancestor: Frame | null = frame; ancestor; ancestor = ancestor.parentFrame())
+    for (
+      let ancestor: Frame | null = frame;
+      ancestor;
+      ancestor = ancestor.parentFrame()
+    )
       chain.push(ancestor);
     chain.reverse();
 
-    if (chain.length === 1)
-      return this._describeMainFrame(page);
+    if (chain.length === 1) return this._describeMainFrame(page);
 
     const selectorPromises: Promise<string | undefined>[] = [];
     for (let i = 0; i < chain.length - 1; i++)
       selectorPromises.push(findFrameSelector(chain[i + 1]));
 
-    const result = await raceAgainstDeadline(() => Promise.all(selectorPromises), monotonicTime() + 2000);
-    if (!result.timedOut && result.result.every(selector => !!selector)) {
+    const result = await raceAgainstDeadline(
+      () => Promise.all(selectorPromises),
+      monotonicTime() + 2000
+    );
+    if (!result.timedOut && result.result.every((selector) => !!selector)) {
       return {
         pageAlias,
         isMainFrame: false,
@@ -602,9 +757,13 @@ class ContextRecorder extends EventEmitter {
     const selectorsChain = [];
     for (let i = 0; i < chain.length - 1; i++) {
       if (chain[i].name())
-        selectorsChain.push(`iframe[name=${quoteCSSAttributeValue(chain[i].name())}]`);
+        selectorsChain.push(
+          `iframe[name=${quoteCSSAttributeValue(chain[i].name())}]`
+        );
       else
-        selectorsChain.push(`iframe[src=${quoteCSSAttributeValue(chain[i].url())}]`);
+        selectorsChain.push(
+          `iframe[src=${quoteCSSAttributeValue(chain[i].url())}]`
+        );
     }
     return {
       pageAlias,
@@ -614,7 +773,11 @@ class ContextRecorder extends EventEmitter {
   }
 
   testIdAttributeName(): string {
-    return this._params.testIdAttributeName || this._context.selectors().testIdAttributeName() || 'data-testid';
+    return (
+      this._params.testIdAttributeName ||
+      this._context.selectors().testIdAttributeName() ||
+      "data-testid"
+    );
   }
 
   private async _performAction(frame: Frame, action: actions.Action) {
@@ -624,20 +787,24 @@ class ContextRecorder extends EventEmitter {
     const frameDescription = await this._describeFrame(frame);
     const actionInContext: ActionInContext = {
       frame: frameDescription,
-      action
+      action,
     };
 
-    const perform = async (action: string, params: any, cb: (callMetadata: CallMetadata) => Promise<any>) => {
+    const perform = async (
+      action: string,
+      params: any,
+      cb: (callMetadata: CallMetadata) => Promise<any>
+    ) => {
       const callMetadata: CallMetadata = {
         id: `call@${createGuid()}`,
-        apiName: 'frame.' + action,
+        apiName: "frame." + action,
         objectId: frame.guid,
         pageId: frame._page.guid,
         frameId: frame.guid,
         startTime: monotonicTime(),
         endTime: 0,
         wallTime: Date.now(),
-        type: 'Frame',
+        type: "Frame",
         method: action,
         params,
         log: [],
@@ -662,22 +829,54 @@ class ContextRecorder extends EventEmitter {
     };
 
     const kActionTimeout = 5000;
-    if (action.name === 'click') {
+    if (action.name === "click") {
       const { options } = toClickOptions(action);
-      await perform('click', { selector: action.selector }, callMetadata => frame.click(callMetadata, action.selector, { ...options, timeout: kActionTimeout, strict: true }));
+      await perform("click", { selector: action.selector }, (callMetadata) =>
+        frame.click(callMetadata, action.selector, {
+          ...options,
+          timeout: kActionTimeout,
+          strict: true,
+        })
+      );
     }
-    if (action.name === 'press') {
+    if (action.name === "press") {
       const modifiers = toModifiers(action.modifiers);
-      const shortcut = [...modifiers, action.key].join('+');
-      await perform('press', { selector: action.selector, key: shortcut }, callMetadata => frame.press(callMetadata, action.selector, shortcut, { timeout: kActionTimeout, strict: true }));
+      const shortcut = [...modifiers, action.key].join("+");
+      await perform(
+        "press",
+        { selector: action.selector, key: shortcut },
+        (callMetadata) =>
+          frame.press(callMetadata, action.selector, shortcut, {
+            timeout: kActionTimeout,
+            strict: true,
+          })
+      );
     }
-    if (action.name === 'check')
-      await perform('check', { selector: action.selector }, callMetadata => frame.check(callMetadata, action.selector, { timeout: kActionTimeout, strict: true }));
-    if (action.name === 'uncheck')
-      await perform('uncheck', { selector: action.selector }, callMetadata => frame.uncheck(callMetadata, action.selector, { timeout: kActionTimeout, strict: true }));
-    if (action.name === 'select') {
-      const values = action.options.map(value => ({ value }));
-      await perform('selectOption', { selector: action.selector, values }, callMetadata => frame.selectOption(callMetadata, action.selector, [], values, { timeout: kActionTimeout, strict: true }));
+    if (action.name === "check")
+      await perform("check", { selector: action.selector }, (callMetadata) =>
+        frame.check(callMetadata, action.selector, {
+          timeout: kActionTimeout,
+          strict: true,
+        })
+      );
+    if (action.name === "uncheck")
+      await perform("uncheck", { selector: action.selector }, (callMetadata) =>
+        frame.uncheck(callMetadata, action.selector, {
+          timeout: kActionTimeout,
+          strict: true,
+        })
+      );
+    if (action.name === "select") {
+      const values = action.options.map((value) => ({ value }));
+      await perform(
+        "selectOption",
+        { selector: action.selector, values },
+        (callMetadata) =>
+          frame.selectOption(callMetadata, action.selector, [], values, {
+            timeout: kActionTimeout,
+            strict: true,
+          })
+      );
     }
   }
 
@@ -688,53 +887,69 @@ class ContextRecorder extends EventEmitter {
     const frameDescription = await this._describeFrame(frame);
     const actionInContext: ActionInContext = {
       frame: frameDescription,
-      action
+      action,
     };
     this._setCommittedAfterTimeout(actionInContext);
     this._generator.addAction(actionInContext);
   }
 
   private _setCommittedAfterTimeout(actionInContext: ActionInContext) {
-    const timer = setTimeout(() => {
-      // Commit the action after 5 seconds so that no further signals are added to it.
-      actionInContext.committed = true;
-      this._timers.delete(timer);
-    }, isUnderTest() ? 500 : 5000);
+    const timer = setTimeout(
+      () => {
+        // Commit the action after 5 seconds so that no further signals are added to it.
+        actionInContext.committed = true;
+        this._timers.delete(timer);
+      },
+      isUnderTest() ? 500 : 5000
+    );
     this._timers.add(timer);
   }
 
   private _onFrameNavigated(frame: Frame, page: Page) {
     const pageAlias = this._pageAliases.get(page);
-    this._generator.signal(pageAlias!, frame, { name: 'navigation', url: frame.url() });
+    this._generator.signal(pageAlias!, frame, {
+      name: "navigation",
+      url: frame.url(),
+    });
   }
 
   private _onPopup(page: Page, popup: Page) {
     const pageAlias = this._pageAliases.get(page)!;
     const popupAlias = this._pageAliases.get(popup)!;
-    this._generator.signal(pageAlias, page.mainFrame(), { name: 'popup', popupAlias });
+    this._generator.signal(pageAlias, page.mainFrame(), {
+      name: "popup",
+      popupAlias,
+    });
   }
 
   private _onDownload(page: Page) {
     const pageAlias = this._pageAliases.get(page)!;
     ++this._lastDownloadOrdinal;
-    this._generator.signal(pageAlias, page.mainFrame(), { name: 'download', downloadAlias: this._lastDownloadOrdinal ? String(this._lastDownloadOrdinal) : '' });
+    this._generator.signal(pageAlias, page.mainFrame(), {
+      name: "download",
+      downloadAlias: this._lastDownloadOrdinal
+        ? String(this._lastDownloadOrdinal)
+        : "",
+    });
   }
 
   private _onDialog(page: Page) {
     const pageAlias = this._pageAliases.get(page)!;
     ++this._lastDialogOrdinal;
-    this._generator.signal(pageAlias, page.mainFrame(), { name: 'dialog', dialogAlias: this._lastDialogOrdinal ? String(this._lastDialogOrdinal) : '' });
+    this._generator.signal(pageAlias, page.mainFrame(), {
+      name: "dialog",
+      dialogAlias: this._lastDialogOrdinal
+        ? String(this._lastDialogOrdinal)
+        : "",
+    });
   }
 }
 
 function languageForFile(file: string) {
-  if (file.endsWith('.py'))
-    return 'python';
-  if (file.endsWith('.java'))
-    return 'java';
-  if (file.endsWith('.cs'))
-    return 'csharp';
-  return 'javascript';
+  if (file.endsWith(".py")) return "python";
+  if (file.endsWith(".java")) return "java";
+  if (file.endsWith(".cs")) return "csharp";
+  return "javascript";
 }
 
 class ThrottledFile {
@@ -748,8 +963,7 @@ class ThrottledFile {
 
   setContent(text: string) {
     this._text = text;
-    if (!this._timer)
-      this._timer = setTimeout(() => this.flush(), 250);
+    if (!this._timer) this._timer = setTimeout(() => this.flush(), 250);
   }
 
   flush(): void {
@@ -757,28 +971,28 @@ class ThrottledFile {
       clearTimeout(this._timer);
       this._timer = undefined;
     }
-    if (this._text)
-      fs.writeFileSync(this._file, this._text);
+    if (this._text) fs.writeFileSync(this._file, this._text);
     this._text = undefined;
   }
 }
 
 function isScreenshotCommand(metadata: CallMetadata) {
-  return metadata.method.toLowerCase().includes('screenshot');
+  return metadata.method.toLowerCase().includes("screenshot");
 }
 
 async function findFrameSelector(frame: Frame): Promise<string | undefined> {
   try {
     const parent = frame.parentFrame();
     const frameElement = await frame.frameElement();
-    if (!frameElement || !parent)
-      return;
+    if (!frameElement || !parent) return;
     const utility = await parent._utilityContext();
     const injected = await utility.injectedScript();
     const selector = await injected.evaluate((injected, element) => {
-      return injected.generateSelectorSimple(element as Element, { testIdAttributeName: '', omitInternalEngines: true });
+      return injected.generateSelectorSimple(element as Element, {
+        testIdAttributeName: "",
+        omitInternalEngines: true,
+      });
     }, frameElement);
     return selector;
-  } catch (e) {
-  }
+  } catch (e) {}
 }

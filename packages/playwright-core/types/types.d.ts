@@ -20851,5 +20851,4 @@ export declare function installBrowser(
   options: { withDeps?: boolean, force?: boolean, dryRun?: boolean },
   onProgress: ((percent: number, filename: string) => void) | undefined
 ): Promise<void>;
-export declare function getPrimaryPageData(): { webcontent: string, url: string};
 

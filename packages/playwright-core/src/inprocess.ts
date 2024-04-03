@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { createInProcessPlaywright } from './inProcessFactory';
-import { codegen, installBrowser } from './cli'; // Adjust the path based on your structure
+import { createInProcessPlaywright } from "./inProcessFactory";
+import { codegen, installBrowser } from "./cli"; // Adjust the path based on your structure
 
-module.exports = { ...createInProcessPlaywright(), codegen, installBrowser };
+module.exports = {
+  ...createInProcessPlaywright(),
+  codegen,
+  installBrowser,
+};
